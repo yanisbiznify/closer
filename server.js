@@ -10,6 +10,7 @@ const dialer = require("./src/dialer");
 const calendar = require("./src/calendar");
 const billing = require("./src/billing");
 const revenue = require("./src/revenue");
+const inbox = require("./src/inbox");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -91,6 +92,7 @@ app.post("/api/webhook/ghl", (req, res) => {
 
 /* ---------- Webhooks Twilio (signature vérifiée) ---------- */
 app.use("/api/twilio", dialer.hooks);
+app.use("/api/twilio", inbox.hooks);
 
 /* ---------- API ---------- */
 const api = express.Router();
@@ -236,6 +238,7 @@ api.use(dialer.api);
 api.use(calendar.api);
 api.use(billing.api);
 api.use(revenue.api);
+api.use(inbox.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
@@ -274,6 +277,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();
+  inbox.start();
   if (stripe.enabled()) stripe.ensureWebhook().then(() => console.log(`Stripe prêt (${stripe.mode()})`)).catch((e) => console.warn("Stripe :", e.message));
   if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {

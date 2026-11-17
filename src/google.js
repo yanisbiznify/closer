@@ -4,7 +4,8 @@ const config = require("./config");
 const { q } = require("./db");
 const { publicUrl } = require("./twilio");
 
-const SCOPES = ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.readonly"];
+const GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/gmail.readonly"];
+const SCOPES = ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.readonly", ...GMAIL_SCOPES];
 const API = "https://www.googleapis.com/calendar/v3";
 
 const configured = () => !!(config.googleClientId && config.googleClientSecret);
@@ -56,7 +57,7 @@ async function tokenRequest(body) {
 async function exchangeCode(code) {
   const t = await tokenRequest({ code, grant_type: "authorization_code", redirect_uri: redirectUri() });
   const cur = await getStore();
-  const next = { ...cur, refresh_token: t.refresh_token || cur.refresh_token, access_token: t.access_token, expires_at: Date.now() + (t.expires_in - 60) * 1000 };
+  const next = { ...cur, refresh_token: t.refresh_token || cur.refresh_token, access_token: t.access_token, expires_at: Date.now() + (t.expires_in - 60) * 1000, scope: t.scope || cur.scope || "" };
   await setStore(next);
   // adresse et fuseau de l'agenda principal
   try {
@@ -151,7 +152,27 @@ async function deleteEvent(id, notify) {
 
 async function status() {
   const s = await getStore();
-  return { configured: configured(), missing: missing(), connected: !!s.refresh_token, email: s.email || null, timeZone: s.timeZone || null, redirectUri: publicUrl() ? redirectUri() : null };
+  return { configured: configured(), missing: missing(), connected: !!s.refresh_token, gmail: !!s.refresh_token && hasGmail(s), email: s.email || null, timeZone: s.timeZone || null, redirectUri: publicUrl() ? redirectUri() : null };
+}
+
+const hasGmail = (s) => GMAIL_SCOPES.every((x) => String(s.scope || "").split(" ").includes(x));
+
+// Appel à l'API Gmail avec le même jeton
+async function gmail(path, { method = "GET", body, query } = {}) {
+  const tok = await accessToken();
+  const url = "https://gmail.googleapis.com/gmail/v1/users/me" + path + (query ? "?" + new URLSearchParams(query) : "");
+  const res = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${tok}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(`Gmail : ${(j.error && j.error.message) || res.status}`);
+    if (res.status === 403 || res.status === 401) e.code = "gmail_scope";
+    throw e;
+  }
+  return j;
 }
 
 async function disconnect() {
@@ -160,4 +181,4 @@ async function disconnect() {
   await setStore({});
 }
 
-module.exports = { configured, missing, authUrl, validState, exchangeCode, listEvents, createEvent, deleteEvent, status, disconnect };
+module.exports = { configured, missing, authUrl, validState, exchangeCode, listEvents, createEvent, deleteEvent, status, disconnect, gmail, getStore, hasGmail };

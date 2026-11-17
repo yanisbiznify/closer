@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=9">
+<link rel="stylesheet" href="/app.css?v=10">
 </head>
 <body>
 <div class="shell">
@@ -28,6 +28,7 @@
       <button data-v="dashboard" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="12" r="2.2"/></svg>Tableau de bord</button>
       <button data-v="revenue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="6" rx="1"/><rect x="10.5" y="8" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="14" rx="1"/></svg>Chiffre d'affaires</button>
       <button data-v="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>Pipeline</button>
+      <button data-v="conversations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg>Conversations<span class="count" id="nav-unread"></span></button>
       <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="12" cy="15" r="1.4" fill="currentColor"/></svg>Agenda</button>
       <button data-v="billing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v19l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Factures</button>
       <button data-v="dialer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="12" cy="18" r="1.6"/></svg>Dialer<span class="count" id="nav-rappels"></span></button>
@@ -129,6 +130,24 @@
       </section>
 
       <!-- AGENDA -->
+      <section class="view" id="v-conversations">
+        <div class="head">
+          <div><h1>Conversations</h1><p>Écris à tes prospects par SMS ou par email, depuis un seul fil par prospect.</p></div>
+          <div class="actions"><button class="btn primary" id="cv-new">Nouveau message</button></div>
+        </div>
+        <div id="cv-setup"></div>
+        <div class="cv-wrap">
+          <aside class="panel cv-side">
+            <div class="cv-tools">
+              <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cv-q" placeholder="Rechercher" aria-label="Rechercher une conversation"></div>
+              <div class="seg" id="cv-filter"><button data-f="all" class="on">Toutes</button><button data-f="unread">Non lues</button></div>
+            </div>
+            <div class="cv-list" id="cv-list"></div>
+          </aside>
+          <section class="panel cv-main" id="cv-main"></section>
+        </div>
+      </section>
+
       <section class="view" id="v-calendar">
         <div class="head">
           <div><h1>Agenda</h1><p id="cal-account">Tes rendez-vous, avec un lien Google Meet pour chacun.</p></div>
@@ -373,13 +392,14 @@
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/vendor/twilio/twilio.min.js" defer></script>
-<script src="/app.js?v=10"></script>
+<script src="/app.js?v=11"></script>
 <script src="/vendor/xlsx/xlsx.full.min.js" defer></script>
 <script src="/phone.js?v=7"></script>
-<script src="/dialer.js?v=9"></script>
-<script src="/crm.js?v=8"></script>
+<script src="/dialer.js?v=10"></script>
+<script src="/crm.js?v=9"></script>
 <script src="/calendar.js?v=7"></script>
 <script src="/billing.js?v=2"></script>
 <script src="/revenue.js?v=1"></script>
+<script src="/inbox.js?v=1"></script>
 </body>
 </html>

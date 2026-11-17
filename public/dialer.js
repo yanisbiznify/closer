@@ -25,6 +25,7 @@ function onView(v) {
   if (v === "calendar") loadCalendar();
   if (v === "billing") loadBilling();
   if (v === "revenue") loadRevenue();
+  if (typeof cvOnView === "function") cvOnView(v);
 }
 
 /* ---------- Dialer ---------- */

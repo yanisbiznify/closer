@@ -28,6 +28,7 @@ const config = {
   twilioToken: env("TWILIO_AUTH_TOKEN"),
   twilioCallerId: env("TWILIO_CALLER_ID"),
   publicUrl: env("PUBLIC_URL"),
+  twilioSmsFrom: env("TWILIO_SMS_FROM"), // numéro d'envoi des SMS, si différent du numéro d'appel
 
   // Agenda (Google)
   googleClientId: env("GOOGLE_CLIENT_ID"),

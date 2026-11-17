@@ -115,4 +115,4 @@ async function downloadRecording(url) {
   return { buffer: Buffer.from(await res.arrayBuffer()), type: "audio/mpeg" };
 }
 
-module.exports = { enabled, missing, ensureSetup, token, normalizePhone, validRequest, voiceTwiml, rejectTwiml, downloadRecording, publicUrl };
+module.exports = { client, enabled, missing, ensureSetup, token, normalizePhone, validRequest, voiceTwiml, rejectTwiml, downloadRecording, publicUrl };

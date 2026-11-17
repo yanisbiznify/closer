@@ -11,13 +11,17 @@ api.get("/google/status", async (req, res) => res.json(await google.status()));
 
 api.get("/google/auth", (req, res) => {
   if (!google.configured()) return res.status(400).send("Ajoute GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans Railway.");
+  const ret = ["conversations", "calendar"].includes(req.query.ret) ? req.query.ret : "calendar";
+  res.setHeader("Set-Cookie", `closer_gret=${ret}; Path=/api/google; Max-Age=900; HttpOnly; SameSite=Lax; Secure`);
   res.redirect(google.authUrl());
 });
+const gret = (req) => (/(?:^|;\s*)closer_gret=(conversations|calendar)/.exec(req.headers.cookie || "") || [])[1] || "calendar";
 
 api.get("/google/callback", async (req, res) => {
-  if (req.query.error) return res.redirect("/#calendar-refus");
-  if (!google.validState(req.query.state)) return res.status(400).send("Lien de connexion expiré, recommence depuis l'onglet Agenda.");
-  try { await google.exchangeCode(req.query.code); res.redirect("/#calendar"); }
+  const ret = gret(req);
+  if (req.query.error) return res.redirect(ret === "calendar" ? "/#calendar-refus" : "/#" + ret);
+  if (!google.validState(req.query.state)) return res.status(400).send("Lien de connexion expiré, recommence depuis l'application.");
+  try { await google.exchangeCode(req.query.code); res.redirect("/#" + ret); }
   catch (e) { res.status(502).send("Connexion Google impossible : " + e.message); }
 });
 

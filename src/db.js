@@ -150,6 +150,23 @@ async function migrate() {
       amount_cents INTEGER NOT NULL,
       paid_at      TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS messages (
+      id           SERIAL PRIMARY KEY,
+      lead_id      INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      channel      TEXT NOT NULL,              -- sms | email
+      direction    TEXT NOT NULL,              -- in | out
+      address      TEXT,                       -- numéro ou email du prospect
+      subject      TEXT,
+      body         TEXT NOT NULL DEFAULT '',
+      status       TEXT,                       -- sent | delivered | failed | received…
+      error        TEXT,
+      external_id  TEXT UNIQUE,                -- SID Twilio ou id Gmail
+      thread_id    TEXT,
+      mid_header   TEXT,                       -- en-tête Message-ID (réponses email)
+      read_at      TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS messages_lead_idx ON messages (lead_id, created_at);
     CREATE TABLE IF NOT EXISTS bilans (
       id         SERIAL PRIMARY KEY,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
