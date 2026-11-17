@@ -22,6 +22,7 @@ function onView(v) {
   if (v === "leads") loadLeadsView();
   if (v === "objections") loadObjections();
   if (v === "pipeline") loadPipeline();
+  if (v === "calendar") loadCalendar();
 }
 
 /* ---------- Dialer ---------- */
@@ -277,6 +278,7 @@ $("#leads").addEventListener("click", (e) => {
 function openImport(title, sub, body, onGo) {
   $("#imp-title").textContent = title; $("#imp-sub").textContent = sub; $("#imp-body").innerHTML = body;
   $("#imp").classList.add("on");
+  $("#imp-go").style.display = ""; $("#imp-no").textContent = "Annuler"; $("#imp").querySelector(".box").style.maxWidth = "";
   $("#imp-no").onclick = () => $("#imp").classList.remove("on");
   $("#imp-go").disabled = false; $("#imp-go").textContent = "Importer";
   $("#imp-go").onclick = async () => {

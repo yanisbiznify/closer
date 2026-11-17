@@ -82,6 +82,7 @@ async function phoneOutcome(k, cbLocal) {
   document.dispatchEvent(new CustomEvent("lead-updated", { detail: r.lead }));
   if (typeof refresh === "function") refresh();
   if (done) done(k, r.lead);
+  if (k === "rdv" && typeof openBooking === "function") setTimeout(() => openBooking({ lead: r.lead }), 350);
 }
 
 function phoneClose() {

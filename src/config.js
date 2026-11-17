@@ -28,6 +28,10 @@ const config = {
   twilioToken: env("TWILIO_AUTH_TOKEN"),
   twilioCallerId: env("TWILIO_CALLER_ID"),
   publicUrl: env("PUBLIC_URL"),
+
+  // Agenda (Google)
+  googleClientId: env("GOOGLE_CLIENT_ID"),
+  googleClientSecret: env("GOOGLE_CLIENT_SECRET"),
 };
 
 // Secret de session : dérivé du mot de passe si non fourni

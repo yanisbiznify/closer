@@ -42,6 +42,8 @@ S'installe sur ton téléphone comme une vraie app (PWA).
 | `TWILIO_ACCOUNT_SID` | *(dialer)* identifiant du compte Twilio (commence par `AC`) |
 | `TWILIO_AUTH_TOKEN` | *(dialer)* jeton d'authentification Twilio |
 | `TWILIO_CALLER_ID` | *(dialer)* le numéro affiché chez tes prospects, au format `+33…` |
+| `GOOGLE_CLIENT_ID` | *(agenda)* identifiant OAuth Google |
+| `GOOGLE_CLIENT_SECRET` | *(agenda)* secret OAuth Google |
 | `PUBLIC_URL` | *(optionnel)* adresse publique de l'app ; Railway la fournit déjà automatiquement |
 
 Le fichier `.env.example` récapitule ces variables.
@@ -66,6 +68,12 @@ Copie le jeton dans `GHL_API_KEY`.
    - soit tu vérifies ton numéro actuel (Phone Numbers → Verified Caller IDs).
 3. Copie l'Account SID et l'Auth Token (page d'accueil de la console) dans Railway, avec ton numéro dans `TWILIO_CALLER_ID`.
 
+**Google Agenda (pour l'onglet Agenda et Google Meet)**
+1. Sur [console.cloud.google.com](https://console.cloud.google.com), crée un projet, puis active **Google Calendar API**.
+2. **OAuth consent screen** : type « External », renseigne ton adresse, puis passe le statut de publication sur **In production**. En mode « Testing », la connexion expire au bout de 7 jours.
+3. **Credentials → Create credentials → OAuth client ID → Web application**. Dans « Authorized redirect URIs », ajoute `https://TON-DOMAINE.up.railway.app/api/google/callback`.
+4. Copie le Client ID et le Client secret dans Railway, puis clique sur **Connecter Google Agenda** dans l'onglet Agenda. Google affichera « application non validée » : clique sur « Paramètres avancés », puis « Accéder à CLOSER PRO ».
+
 Au démarrage, CLOSER PRO crée tout seul l'application Twilio et la clé dont le navigateur a besoin. Tu n'as rien d'autre à configurer.
 
 **Deepgram**
@@ -89,6 +97,11 @@ Ouvre ton adresse Railway sur ton téléphone :
 - **Fiche prospect** : prénom et nom du dirigeant, entreprise, type d'activité, téléphone, email, ville, valeur du lead, lien Google Maps cliquable, site web, notes, historique des appels. Tout se modifie directement.
 - **Import Excel** (.xlsx, .xls) ou CSV : les colonnes sont reconnues automatiquement (« Nom prénom du dirigeant », « Nom entreprise », « Type d'activité », « Téléphone », « Lien Google Maps », « Valeur »…), et tu peux corriger la correspondance avant d'importer.
 - **Fenêtre d'appel** : le bouton téléphone d'une carte ou d'une fiche ouvre le dialer en fenêtre flottante, avec le micro, le clavier, le script et la qualification. Elle reste ouverte quand tu changes de page.
+
+### Agenda
+- Vue semaine de ton Google Agenda, avec la liste des prochains rendez-vous.
+- **Clique sur un créneau** ou sur « Nouveau rendez-vous » : choisis le prospect, la date et la durée. CLOSER PRO crée l'événement avec un **lien Google Meet** et envoie l'invitation au prospect. L'heure de Paris est affichée pour éviter les erreurs de fuseau.
+- Après un appel qualifié « Rendez-vous », la fenêtre de réservation s'ouvre toute seule. Le prospect passe en « RDV pris » dans le pipeline, et une note avec la date et le lien Meet est ajoutée dans GHL.
 
 ### Dialer
 - **Prospects** : importe une liste depuis un tag GoHighLevel ou depuis un fichier CSV. Les numéros sont convertis au format international automatiquement.

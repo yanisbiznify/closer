@@ -7,6 +7,7 @@ const { q, migrate, getSettings, saveSettings } = require("./src/db");
 const worker = require("./src/worker");
 const { coachReport } = require("./src/analyze");
 const dialer = require("./src/dialer");
+const calendar = require("./src/calendar");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
 
@@ -226,6 +227,7 @@ api.post("/bilan", async (req, res) => {
 });
 
 api.use(dialer.api);
+api.use(calendar.api);
 app.use("/api", api);
 
 /* ---------- Front ---------- */

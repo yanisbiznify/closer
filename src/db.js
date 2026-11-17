@@ -90,6 +90,18 @@ async function migrate() {
         ELSE CASE WHEN attempts >= 3 THEN 'tentative3' WHEN attempts = 2 THEN 'tentative2' ELSE 'tentative1' END END
       WHERE stage IS NULL;
     CREATE INDEX IF NOT EXISTS leads_stage_idx ON leads (stage);
+    CREATE TABLE IF NOT EXISTS appointments (
+      id              SERIAL PRIMARY KEY,
+      lead_id         INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+      google_event_id TEXT,
+      title           TEXT,
+      start_at        TIMESTAMPTZ NOT NULL,
+      end_at          TIMESTAMPTZ NOT NULL,
+      meet_url        TEXT,
+      attendee_email  TEXT,
+      status          TEXT NOT NULL DEFAULT 'planifie',
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS bilans (
       id         SERIAL PRIMARY KEY,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
