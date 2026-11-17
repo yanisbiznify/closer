@@ -1,7 +1,7 @@
 {
   "name": "closer",
   "version": "1.0.0",
-  "description": "CLOSER — ton coach de cold call Straight Line. Analyse automatique de tes appels GoHighLevel.",
+  "description": "CLOSER PRO — ton coach de cold call Straight Line. Analyse automatique de tes appels GoHighLevel.",
   "main": "server.js",
   "private": true,
   "scripts": {

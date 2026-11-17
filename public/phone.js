@@ -1,4 +1,4 @@
-/* CLOSER — fenêtre d'appel flottante (utilisable depuis n'importe quelle page) */
+/* CLOSER PRO — fenêtre d'appel flottante (utilisable depuis n'importe quelle page) */
 const P = { cfg: null, device: null, call: null, sid: null, lead: null, phase: "idle", t0: 0, timer: null, muted: false, pad: false, script: false, min: false, onDone: null, showCb: false };
 const P_OUT = [
   ["rdv", "Rendez-vous", "var(--good)"], ["rappel", "À rappeler", "var(--mid)"], ["pas_interesse", "Pas intéressé", "var(--bad)"],
@@ -106,7 +106,7 @@ function renderPhone() {
   if (P.phase === "setup") {
     const c = P.cfg || {};
     body = `<div class="ph-b"><p style="margin:0 0 8px"><b>${c.error ? "Twilio ne répond pas" : "Le dialer n'est pas encore connecté"}</b></p>
-      <p class="muted small" style="margin:0">${c.error ? esc(c.error) : `Ajoute dans Railway : ${(c.missing || []).map(esc).join(", ")}. CLOSER configure le reste tout seul.`}</p>
+      <p class="muted small" style="margin:0">${c.error ? esc(c.error) : `Ajoute dans Railway : ${(c.missing || []).map(esc).join(", ")}. CLOSER PRO configure le reste tout seul.`}</p>
       <div style="margin-top:12px">${l.phone ? `<a class="btn ghost" href="tel:${esc(l.phone)}">Appeler avec mon téléphone</a>` : ""}</div></div>`;
   } else if (P.phase === "connecting" || P.phase === "incall") {
     body = `<div class="ph-b">

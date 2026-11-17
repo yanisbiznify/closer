@@ -1,8 +1,8 @@
-# CLOSER
+# CLOSER PRO
 
 **Reste sur la ligne. Close plus.**
 
-CLOSER récupère tes appels de prospection dans GoHighLevel, les transcrit et les analyse avec la méthode Straight Line de Jordan Belfort. Pour chaque appel, tu obtiens :
+CLOSER PRO récupère tes appels de prospection dans GoHighLevel, les transcrit et les analyse avec la méthode Straight Line de Jordan Belfort. Pour chaque appel, tu obtiens :
 
 - un score sur 100 ;
 - une note pour chacune des 8 étapes de la ligne droite ;
@@ -66,7 +66,7 @@ Copie le jeton dans `GHL_API_KEY`.
    - soit tu vérifies ton numéro actuel (Phone Numbers → Verified Caller IDs).
 3. Copie l'Account SID et l'Auth Token (page d'accueil de la console) dans Railway, avec ton numéro dans `TWILIO_CALLER_ID`.
 
-Au démarrage, CLOSER crée tout seul l'application Twilio et la clé dont le navigateur a besoin. Tu n'as rien d'autre à configurer.
+Au démarrage, CLOSER PRO crée tout seul l'application Twilio et la clé dont le navigateur a besoin. Tu n'as rien d'autre à configurer.
 
 **Deepgram**
 Crée un compte sur [console.deepgram.com](https://console.deepgram.com) : 200 $ de crédit offert, soit des centaines d'heures d'appels. Crée ensuite une clé API.
@@ -100,7 +100,7 @@ Ouvre ton adresse Railway sur ton téléphone :
 
 ### Analyse
 
-- **Automatique** : toutes les 10 minutes, CLOSER récupère tes nouveaux appels GHL. Chaque appel décroché qui a un enregistrement est transcrit (Deepgram, en français, voix séparées) puis analysé (Claude). Seuls les appels passés **après l'installation** sont analysés automatiquement.
+- **Automatique** : toutes les 10 minutes, CLOSER PRO récupère tes nouveaux appels GHL. Chaque appel décroché qui a un enregistrement est transcrit (Deepgram, en français, voix séparées) puis analysé (Claude). Seuls les appels passés **après l'installation** sont analysés automatiquement.
 - **Historique** : dans l'onglet *Appels*, le bouton « Analyser tout l'historique » traite tes anciens appels. Tu peux aussi analyser un appel en le touchant.
 - **Appels trop courts** : en dessous de la durée minimale (réglable) ou de 25 mots, l'appel est marqué « trop court » et n'est pas envoyé à Claude.
 - **Ajouter** : importe un fichier audio (appel passé hors GHL, jeu de rôle…) ou colle une transcription.
@@ -111,7 +111,7 @@ Dans GHL, crée un workflow : déclencheur **Call Status** (appel terminé), pui
 ```
 https://TON-DOMAINE.up.railway.app/api/webhook/ghl?secret=TON_WEBHOOK_SECRET
 ```
-CLOSER lancera une synchronisation 20 secondes après chaque appel.
+CLOSER PRO lancera une synchronisation 20 secondes après chaque appel.
 
 ### Coûts estimés
 - Transcription Deepgram : environ 0,005 $ par minute d'appel.

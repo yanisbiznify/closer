@@ -1,4 +1,4 @@
-/* CLOSER — application v2 */
+/* CLOSER PRO — application v2 */
 const ETAPES = [
   ["ouverture", "Ouverture", "Les 4 premières secondes"],
   ["tonalite", "Tonalité", ""],
@@ -176,7 +176,7 @@ function renderDashboard() {
        <p>C'est l'étape où tu perds le plus de points : ${notes[weakest[0]].toFixed(1)}/10 en moyenne sur tes ${last10.length} derniers appels.</p>
        ${last && last.summary && last.summary.priorite ? `<div class="advice"><b>Dernier conseil du coach</b><br>${esc(last.summary.priorite)}</div>` : ""}
        <div style="margin-top:18px"><button class="btn ghost" data-go="coach">Ouvrir le bilan du coach</button></div>`
-    : `<div class="k">Pour commencer</div><h3>Analyse ton premier appel</h3><p>Passe tes appels depuis GoHighLevel : CLOSER les récupère tout seul. Tu peux aussi importer un enregistrement.</p><div style="margin-top:18px"><button class="btn primary" data-go="calls">Voir mes appels</button></div>`;
+    : `<div class="k">Pour commencer</div><h3>Analyse ton premier appel</h3><p>Passe tes appels depuis GoHighLevel : CLOSER PRO les récupère tout seul. Tu peux aussi importer un enregistrement.</p><div style="margin-top:18px"><button class="btn primary" data-go="calls">Voir mes appels</button></div>`;
 
   // Graphique
   if (all.length >= 2) {
@@ -409,7 +409,7 @@ function renderSyncInfo() {
   const w = workerState || {};
   $("#sync-info").innerHTML = w.lastSyncError
     ? `<span class="c-bad">La dernière synchronisation a échoué : ${esc(w.lastSyncError)}</span>`
-    : w.lastSync ? `Dernière synchronisation ${esc(fmtFull(w.lastSync))}. CLOSER vérifie tes nouveaux appels toutes les 10 minutes.` : "CLOSER vérifie tes nouveaux appels toutes les 10 minutes.";
+    : w.lastSync ? `Dernière synchronisation ${esc(fmtFull(w.lastSync))}. CLOSER PRO vérifie tes nouveaux appels toutes les 10 minutes.` : "CLOSER PRO vérifie tes nouveaux appels toutes les 10 minutes.";
 }
 $("#btn-save").onclick = async () => {
   try {

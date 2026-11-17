@@ -1,4 +1,4 @@
-// CLOSER — ton coach de cold call Straight Line
+// CLOSER PRO — ton coach de cold call Straight Line
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
@@ -257,7 +257,7 @@ app.use((err, req, res, next) => {
   }
   await migrate();
   await getSettings();
-  app.listen(config.port, () => console.log(`CLOSER en ligne sur le port ${config.port}`));
+  app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();
   if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {

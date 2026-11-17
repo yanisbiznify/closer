@@ -1,4 +1,4 @@
-/* CLOSER — dialer, prospects, objections */
+/* CLOSER PRO — dialer, prospects, objections */
 const OUT = {
   rdv: { label: "Rendez-vous", color: "var(--good)", key: "1" },
   rappel: { label: "À rappeler", color: "var(--mid)", key: "2" },
@@ -41,12 +41,12 @@ function renderSetup() {
   $("#dl-state").textContent = c.enabled ? `Prêt, numéro ${fmtPhone(c.callerId)}` : "Non configuré";
   if (c.enabled) { $("#dl-setup").innerHTML = ""; return; }
   $("#dl-setup").innerHTML = `<div class="callout ${c.error ? "err" : ""}"><div class="grow">
-    <b>${c.error ? "Le dialer n'a pas pu se connecter à Twilio" : "Connecte Twilio pour passer tes appels depuis CLOSER"}</b>
+    <b>${c.error ? "Le dialer n'a pas pu se connecter à Twilio" : "Connecte Twilio pour passer tes appels depuis CLOSER PRO"}</b>
     <p>${c.error ? esc(c.error) : "Tu peux déjà préparer tes listes et ta file d'appels. Pour appeler :"}</p>
     ${c.error ? "" : `<ol class="setup-steps">
       <li>Crée un compte sur twilio.com et achète un numéro français, ou vérifie ton numéro actuel comme identifiant d'appel.</li>
       <li>Dans Railway, ajoute <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code> et <code>TWILIO_CALLER_ID</code> (ton numéro au format +33…).</li>
-      <li>C'est tout : CLOSER configure le reste au démarrage.</li></ol>`}
+      <li>C'est tout : CLOSER PRO configure le reste au démarrage.</li></ol>`}
   </div></div>`;
 }
 

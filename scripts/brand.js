@@ -1,4 +1,4 @@
-// Génère les assets de marque CLOSER (SVG + PNG) dans public/brand
+// Génère les assets de marque CLOSER PRO (SVG + PNG) dans public/brand
 // Usage : npm i opentype.js @expo-google-fonts/space-grotesk @resvg/resvg-js && node scripts/brand.js public/brand
 const fs = require("fs");
 const path = require("path");
@@ -31,12 +31,12 @@ function mark({ ring = C.ivoire, line = C.or, scale = 1, tx = 0, ty = 0 } = {}) 
 }
 
 // ---- Le logotype « CLOSER » en tracés (aucune police requise)
-function wordmark(size, color, tracking = 0.06) {
+function wordmark(size, color, tracking = 0.06, text = "CLOSER") {
   const font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)); // police fraîche : contourne un bug de cache d'opentype.js
   const scale = size / font.unitsPerEm;
   let x = 0, maxX = 0;
   const parts = [];
-  for (const ch of "CLOSER") {
+  for (const ch of text) {
     const g = font.charToGlyph(ch);
     const gp = font.getPath(ch, x, 0, size, { kerning: false, hinting: false });
     const d = gp.toPathData(2);
@@ -48,6 +48,17 @@ function wordmark(size, color, tracking = 0.06) {
     x = Math.round((x + adv + size * tracking) * 100) / 100;
   }
   return { d: parts.join(" "), width: maxX, color };
+}
+
+// « CLOSER » ivoire + « PRO » or
+function wordmarkPro(size, main) {
+  const a = wordmark(size, main, 0.06, "CLOSER");
+  const b = wordmark(size, C.or, 0.06, "PRO");
+  const gap = Math.round(size * 0.3);
+  return {
+    width: a.width + gap + b.width,
+    body: (x, y) => `<path d="${a.d}" fill="${main}" transform="translate(${x} ${y})"/><path d="${b.d}" fill="${C.or}" transform="translate(${(x + a.width + gap).toFixed(2)} ${y})"/>`,
+  };
 }
 
 function svg(w, h, body, bg) {
@@ -79,11 +90,11 @@ png("favicon-32.png", icon(120), 32);
 
 // Lockups horizontaux
 function lockup(dark) {
-  const wm = wordmark(150, dark ? C.ivoire : C.noir);
+  const wm = wordmarkPro(150, dark ? C.ivoire : C.noir);
   const markScale = 0.42, markW = 512 * markScale, gap = 34, pad = 40;
   const W = Math.ceil(pad + markW + gap + wm.width + pad), H = 300;
   const body = `${mark({ ring: dark ? C.ivoire : C.noir, scale: markScale, tx: pad, ty: (H - 512 * markScale) / 2 })}
-    <path d="${wm.d}" fill="${wm.color}" transform="translate(${pad + markW + gap} ${H / 2 + 52})"/>`;
+    ${wm.body(pad + markW + gap, H / 2 + 52)}`;
   return svg(W, H, body, dark ? C.noir : null);
 }
 write("logo-dark.svg", lockup(true));
@@ -92,17 +103,17 @@ write("logo-light.svg", lockup(false));
 png("logo-dark.png", lockup(true), 1200);
 
 // Logotype seul (pour l'en-tête de l'app)
-const wm = wordmark(100, C.ivoire);
-write("wordmark.svg", svg(Math.ceil(wm.width) + 4, 100, `<path d="${wm.d}" fill="${C.ivoire}" transform="translate(2 74)"/>`));
+const wm = wordmarkPro(100, C.ivoire);
+write("wordmark.svg", svg(Math.ceil(wm.width) + 4, 100, wm.body(2, 74)));
 
 // Image de partage (Open Graph)
 const og = (() => {
-  const w2 = wordmark(120, C.ivoire);
+  const w2 = wordmarkPro(110, C.ivoire);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
   <rect width="1200" height="630" fill="${C.noir}"/>
   <line x1="0" y1="470" x2="1200" y2="470" stroke="${C.or}" stroke-width="2" opacity=".35"/>
   ${mark({ scale: 0.5, tx: 110, ty: 140 })}
-  <path d="${w2.d}" fill="${C.ivoire}" transform="translate(400 310)"/>
+  ${w2.body(400, 310)}
   <rect x="404" y="345" width="70" height="8" rx="4" fill="${C.or}"/>
   </svg>`;
 })();

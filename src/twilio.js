@@ -38,14 +38,14 @@ function ensureSetup() {
     const cur = await getStored();
     const next = { ...cur };
     if (!next.appSid) {
-      const app = await client().applications.create({ friendlyName: "CLOSER", voiceUrl, voiceMethod: "POST" });
+      const app = await client().applications.create({ friendlyName: "CLOSER PRO", voiceUrl, voiceMethod: "POST" });
       next.appSid = app.sid;
     } else if (next.voiceUrl !== voiceUrl) {
       await client().applications(next.appSid).update({ voiceUrl, voiceMethod: "POST" });
     }
     next.voiceUrl = voiceUrl;
     if (!next.keySid || !next.keySecret) {
-      const key = await client().newKeys.create({ friendlyName: "CLOSER dialer" });
+      const key = await client().newKeys.create({ friendlyName: "CLOSER PRO dialer" });
       next.keySid = key.sid;
       next.keySecret = key.secret;
     }

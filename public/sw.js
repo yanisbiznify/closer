@@ -1,5 +1,5 @@
 // Service worker minimal : rend l'app installable et garde l'interface disponible hors ligne.
-const CACHE = "closer-v3";
+const CACHE = "closer-pro-v1";
 const SHELL = ["/", "/app.css", "/app.js", "/login", "/brand/wordmark.svg", "/brand/icon-192.png", "/brand/mark.svg"];
 
 self.addEventListener("install", (e) => {
