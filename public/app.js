@@ -431,7 +431,7 @@ $("#btn-logout").onclick = async () => { await fetch("/api/logout", { method: "P
 /* ---------- Démarrage ---------- */
 (async () => {
   const start = (location.hash || "").slice(1);
-  if (["dashboard", "dialer", "leads", "objections", "calls", "coach", "import", "settings"].includes(start)) setTimeout(() => show(start), 0);
+  if (["dashboard", "pipeline", "dialer", "leads", "objections", "calls", "coach", "import", "settings"].includes(start)) setTimeout(() => show(start), 0);
   try {
     const me = await api("/me");
     window.__me = me;

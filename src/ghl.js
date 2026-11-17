@@ -88,6 +88,8 @@ async function contactsByTag(tag, max = 3000) {
       const last = c.lastName || cap(c.lastNameLowerCase);
       out.push({
         ghl_contact_id: c.id,
+        first_name: first || null,
+        last_name: last || null,
         name: [first, last].filter(Boolean).join(" ") || c.contactName || null,
         company: c.companyName ? String(c.companyName).split(/\s[|·]\s|·/)[0].trim() : null,
         phone: c.phone,

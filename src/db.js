@@ -73,6 +73,23 @@ async function migrate() {
     );
     CREATE INDEX IF NOT EXISTS leads_status_idx ON leads (status);
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS outcome_at TIMESTAMPTZ;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS first_name TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_name TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS activity TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS maps_url TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS website TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS value NUMERIC(12,2) NOT NULL DEFAULT 0;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS source TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS stage TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS stage_at TIMESTAMPTZ;
+    ALTER TABLE leads ALTER COLUMN phone DROP NOT NULL;
+    UPDATE leads SET stage = CASE status
+        WHEN 'rdv' THEN 'rdv' WHEN 'rappel' THEN 'rappel'
+        WHEN 'pas_interesse' THEN 'perdu' WHEN 'mauvais_numero' THEN 'perdu'
+        WHEN 'a_appeler' THEN 'nouveau'
+        ELSE CASE WHEN attempts >= 3 THEN 'tentative3' WHEN attempts = 2 THEN 'tentative2' ELSE 'tentative1' END END
+      WHERE stage IS NULL;
+    CREATE INDEX IF NOT EXISTS leads_stage_idx ON leads (stage);
     CREATE TABLE IF NOT EXISTS bilans (
       id         SERIAL PRIMARY KEY,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

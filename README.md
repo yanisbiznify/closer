@@ -83,6 +83,13 @@ Ouvre ton adresse Railway sur ton téléphone :
 
 ## Comment ça marche
 
+### Pipeline (CRM)
+- **Colonnes** : Nouveau lead, Pas de contact x1, x2, x3, À rappeler, RDV pris, Client signé, Perdu. Chaque colonne affiche son nombre de prospects et sa valeur totale.
+- **Glisser-déposer** une carte pour changer d'étape. Après un appel, la carte avance toute seule selon le résultat (messagerie, puis x1, x2, x3 ; RDV ; perdu…).
+- **Fiche prospect** : prénom et nom du dirigeant, entreprise, type d'activité, téléphone, email, ville, valeur du lead, lien Google Maps cliquable, site web, notes, historique des appels. Tout se modifie directement.
+- **Import Excel** (.xlsx, .xls) ou CSV : les colonnes sont reconnues automatiquement (« Nom prénom du dirigeant », « Nom entreprise », « Type d'activité », « Téléphone », « Lien Google Maps », « Valeur »…), et tu peux corriger la correspondance avant d'importer.
+- **Fenêtre d'appel** : le bouton téléphone d'une carte ou d'une fiche ouvre le dialer en fenêtre flottante, avec le micro, le clavier, le script et la qualification. Elle reste ouverte quand tu changes de page.
+
 ### Dialer
 - **Prospects** : importe une liste depuis un tag GoHighLevel ou depuis un fichier CSV. Les numéros sont convertis au format international automatiquement.
 - **File d'appels** : les rappels prévus passent en premier, puis les prospects jamais appelés, puis ceux à retenter (messagerie, pas de réponse, barrage). Un prospect à retenter revient 2 heures plus tard, jusqu'au nombre de tentatives choisi.

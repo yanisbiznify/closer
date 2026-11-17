@@ -229,6 +229,7 @@ api.use(dialer.api);
 app.use("/api", api);
 
 /* ---------- Front ---------- */
+app.use("/vendor/xlsx", express.static(path.join(__dirname, "node_modules/xlsx/dist"), { maxAge: "7d" }));
 app.use("/vendor/twilio", express.static(path.join(__dirname, "node_modules/@twilio/voice-sdk/dist"), { maxAge: "7d" }));
 // HTML, JS, CSS et service worker : toujours revalidés, pour voir chaque nouvelle version tout de suite
 app.use(express.static(path.join(__dirname, "public"), {
