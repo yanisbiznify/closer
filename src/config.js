@@ -22,6 +22,12 @@ const config = {
   anthropicModel: env("ANTHROPIC_MODEL", "claude-sonnet-5-5"),
 
   syncIntervalMin: Number(env("SYNC_INTERVAL_MIN", 10)),
+
+  // Dialer (Twilio)
+  twilioSid: env("TWILIO_ACCOUNT_SID"),
+  twilioToken: env("TWILIO_AUTH_TOKEN"),
+  twilioCallerId: env("TWILIO_CALLER_ID"),
+  publicUrl: env("PUBLIC_URL"),
 };
 
 // Secret de session : dérivé du mot de passe si non fourni

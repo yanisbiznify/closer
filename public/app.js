@@ -10,7 +10,7 @@ const ETAPES = [
   ["controle", "Contrôle", "Garder la ligne droite"],
 ];
 const ISSUES = { rdv: ["RDV pris", "good"], rappel: ["À rappeler", "mid"], refus: ["Refus", "bad"], barrage: ["Barrage", "bad"], messagerie: ["Messagerie", ""], autre: ["Autre", ""] };
-const ACTIVE = ["queued", "transcribing", "analyzing"];
+const ACTIVE = ["queued", "transcribing", "analyzing", "pending"];
 
 let calls = [], counts = {}, workerState = {}, settings = null, filtre = "tous", query = "", pollTimer = null, currentId = null, currentCall = null, dTab = "analyse";
 
@@ -48,6 +48,7 @@ function show(view) {
   $("#side").classList.remove("on");
   if (location.hash !== "#" + view) history.replaceState(null, "", "#" + view);
   window.scrollTo(0, 0);
+  if (typeof onView === "function") onView(view);
 }
 $("#nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.v); });
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) show(g.dataset.go); });
@@ -86,12 +87,13 @@ function renderAll() {
 
 /* ---------- Composants ---------- */
 const nameOf = (c) => c.contact_name || c.label || (c.summary && c.summary.prospect) || c.phone || (c.source === "paste" ? "Transcription" : c.source === "upload" ? "Audio importé" : "Appel");
-const sourceOf = (c) => c.source === "ghl" ? (c.direction === "inbound" ? "Entrant" : "Sortant") : c.source === "paste" ? "Transcription" : "Import audio";
+const sourceOf = (c) => c.source === "ghl" ? (c.direction === "inbound" ? "Entrant" : "Sortant") : c.source === "dialer" ? "Dialer" : c.source === "paste" ? "Transcription" : "Import audio";
 
 function statusCell(c) {
   switch (c.status) {
     case "done": return `<span class="score c-${tone(c.score)}">${esc(c.score)}</span>`;
     case "queued": return `<span class="badge"><span class="spin"></span>En file</span>`;
+    case "pending": return `<span class="badge"><span class="spin"></span>Enregistrement</span>`;
     case "transcribing": return `<span class="badge"><span class="spin"></span>Transcription</span>`;
     case "analyzing": return `<span class="badge"><span class="spin"></span>Analyse</span>`;
     case "short": return `<span class="badge">Trop court</span>`;
@@ -282,7 +284,7 @@ function renderDrawerBody() {
       if (m2) return `<div class="ln"><span class="ts"></span><div><span class="sp">${esc(m2[1])}</span>${esc(m2[2])}</div></div>`;
       return l.trim() ? `<div class="ln"><span class="ts"></span><div>${esc(l)}</div></div>` : "";
     }).join("");
-    body.innerHTML = `<div class="transcript" style="white-space:normal">${lines}</div>`;
+    body.innerHTML = `${a.has_recording ? `<audio controls preload="none" src="/api/calls/${encodeURIComponent(a.id)}/audio"></audio>` : ""}<div class="transcript" style="white-space:normal">${lines}</div>`;
     return;
   }
   if (a.status !== "done") {
@@ -302,6 +304,7 @@ function renderDrawerBody() {
   const notes = {}; ETAPES.forEach(([k]) => (notes[k] = et[k] ? et[k].note : null));
   body.innerHTML = `
     <div class="verdict">${ring(x.score)}<div>${issueBadge(x.issue)}<p>${esc(x.resume)}</p></div></div>
+    ${a.has_recording ? `<audio controls preload="none" src="/api/calls/${encodeURIComponent(a.id)}/audio"></audio>` : ""}
     ${x.priorite ? `<div class="callout"><div class="grow"><b>Priorité pour le prochain appel</b><p>${esc(x.priorite)}</p></div></div>` : ""}
     <div class="block"><h3>La ligne droite</h3><div class="panel" style="padding:20px 12px 14px">${straightLine(notes)}</div></div>
     <div class="block"><h3>Détail par étape</h3><div class="steps">${ETAPES.map(([k, n, hint]) => { const s = et[k] || {}; const v = s.note;
@@ -399,6 +402,8 @@ function fillSettings() {
   if (!settings) return;
   $("#c-prenom").value = settings.prenom || ""; $("#c-offre").value = settings.offre || "";
   $("#c-min").value = settings.minDuree ?? 20; $("#c-auto").checked = !!settings.autoAnalyze;
+  $("#c-script").value = settings.script || ""; $("#c-obj-appels").value = settings.objectifAppels ?? 50;
+  $("#c-obj-rdv").value = settings.objectifRdv ?? 3; $("#c-max").value = settings.maxTentatives ?? 3;
 }
 function renderSyncInfo() {
   const w = workerState || {};
@@ -408,7 +413,7 @@ function renderSyncInfo() {
 }
 $("#btn-save").onclick = async () => {
   try {
-    settings = await api("/settings", { method: "PUT", body: JSON.stringify({ prenom: $("#c-prenom").value, offre: $("#c-offre").value, minDuree: $("#c-min").value, autoAnalyze: $("#c-auto").checked }) });
+    settings = await api("/settings", { method: "PUT", body: JSON.stringify({ prenom: $("#c-prenom").value, offre: $("#c-offre").value, minDuree: $("#c-min").value, autoAnalyze: $("#c-auto").checked, script: $("#c-script").value, objectifAppels: $("#c-obj-appels").value, objectifRdv: $("#c-obj-rdv").value, maxTentatives: $("#c-max").value }) });
     fillSettings(); renderDashboard(); toast("Réglages enregistrés");
   } catch (e) { toast(e.message); }
 };
@@ -426,9 +431,10 @@ $("#btn-logout").onclick = async () => { await fetch("/api/logout", { method: "P
 /* ---------- Démarrage ---------- */
 (async () => {
   const start = (location.hash || "").slice(1);
-  if (["dashboard", "calls", "coach", "import", "settings"].includes(start)) show(start);
+  if (["dashboard", "dialer", "leads", "objections", "calls", "coach", "import", "settings"].includes(start)) setTimeout(() => show(start), 0);
   try {
     const me = await api("/me");
+    window.__me = me;
     if (me.missing && me.missing.length) {
       $("#cfg-warn").innerHTML = `<div class="callout err"><div class="grow"><b>Configuration incomplète</b><p>Ajoute ces variables dans Railway : ${me.missing.map(esc).join(", ")}.</p></div></div>`;
     }

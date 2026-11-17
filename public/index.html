@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=2">
+<link rel="stylesheet" href="/app.css?v=3">
 </head>
 <body>
 <div class="shell">
@@ -26,7 +26,10 @@
     <div class="brand"><img src="/brand/mark-tight.svg" alt="" style="height:22px"><img src="/brand/wordmark.svg" alt="CLOSER" style="height:15px"></div>
     <nav class="nav" id="nav">
       <button data-v="dashboard" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="12" r="2.2"/></svg>Tableau de bord</button>
+      <button data-v="dialer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="12" cy="18" r="1.6"/></svg>Dialer<span class="count" id="nav-rappels"></span></button>
+      <button data-v="leads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>Prospects</button>
       <button data-v="calls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>Appels<span class="count" id="nav-count"></span></button>
+      <button data-v="objections"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z"/></svg>Objections</button>
       <button data-v="coach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.3l6-.7z"/></svg>Bilan du coach</button>
       <button data-v="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>Importer</button>
       <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages</button>
@@ -79,6 +82,61 @@
           <div class="panel-h"><div><h2>Derniers appels</h2></div><button class="btn quiet" data-go="calls">Tout voir</button></div>
           <div id="recent"></div>
         </div>
+      </section>
+
+
+      <!-- DIALER -->
+      <section class="view" id="v-dialer">
+        <div class="head">
+          <div><h1>Dialer</h1><p>Enchaîne tes appels, le script sous les yeux. Chaque appel est enregistré, analysé et noté dans GoHighLevel.</p></div>
+          <div class="actions"><select id="dl-list" style="width:auto;min-width:220px"></select></div>
+        </div>
+        <div id="dl-setup"></div>
+        <div class="goals" id="dl-goals"></div>
+        <div class="dial" id="dl-main">
+          <div class="panel dcol">
+            <div class="panel-h"><h2>File d'appels</h2><span class="sub" id="dl-qcount"></span></div>
+            <div class="dcol-b" id="dl-queue"></div>
+          </div>
+          <div class="panel dcol" id="dl-call"></div>
+          <div class="panel dcol">
+            <div class="drawer-tabs" id="dl-tabs" style="padding:0 18px"><button data-t="script" class="on">Script</button><button data-t="obj">Objections</button><button data-t="notes">Historique</button></div>
+            <div class="dcol-b" id="dl-aide" style="padding:18px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PROSPECTS -->
+      <section class="view" id="v-leads">
+        <div class="head">
+          <div><h1>Prospects</h1><p>Importe tes listes depuis GoHighLevel ou depuis un fichier, puis appelle-les dans le dialer.</p></div>
+          <div class="actions"><button class="btn ghost" id="btn-imp-csv">Importer un CSV</button><button class="btn primary" id="btn-imp-ghl">Importer depuis GHL</button></div>
+        </div>
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-h"><h2>Listes</h2></div>
+          <div id="lists"></div>
+        </div>
+        <div class="panel">
+          <div class="toolbar">
+            <div class="seg" id="lead-filters">
+              <button data-f="tous" class="on">Tous</button><button data-f="a_appeler">À appeler</button><button data-f="rappel">Rappels</button><button data-f="rdv">RDV</button><button data-f="pas_interesse">Pas intéressés</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select id="lead-list" style="width:auto;min-width:180px"></select>
+              <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="lead-q" placeholder="Rechercher"></div>
+            </div>
+          </div>
+          <div id="leads"></div>
+        </div>
+      </section>
+
+      <!-- OBJECTIONS -->
+      <section class="view" id="v-objections">
+        <div class="head">
+          <div><h1>Objections</h1><p>Toutes les objections entendues dans tes appels, avec la boucle que le coach te recommande. Ta bibliothèque grandit à chaque appel.</p></div>
+          <div class="actions"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="obj-q" placeholder="Rechercher une objection"></div></div>
+        </div>
+        <div id="objections"></div>
       </section>
 
       <!-- APPELS -->
@@ -149,11 +207,23 @@
               <div class="field"><label for="c-prenom">Ton prénom</label><input id="c-prenom" style="max-width:280px"></div>
               <div class="field"><label for="c-offre">Ton offre et l'objectif de tes appels</label><textarea id="c-offre" style="min-height:150px"></textarea><div class="hint">Cible, offre, objectif de l'appel. Plus c'est précis, plus les conseils le sont.</div></div>
               <div class="field"><label for="c-min">Durée minimale d'un appel à analyser</label><div style="display:flex;align-items:center;gap:10px"><input id="c-min" type="number" min="0" step="5" inputmode="numeric" style="max-width:120px"><span class="muted">secondes</span></div></div>
+              <div class="field"><label for="c-script">Script d'appel</label><textarea id="c-script" style="min-height:220px;font-size:13px"></textarea><div class="hint">Affiché dans le dialer. {prénom} est remplacé par le prénom du prospect, {ton prénom} par le tien. Une ligne en MAJUSCULES devient un titre de section.</div></div>
               <div class="toggle"><div><b>Analyse automatique</b><p>Chaque nouvel appel GoHighLevel décroché est transcrit et analysé sans que tu aies à le demander.</p></div><label class="switch"><input type="checkbox" id="c-auto"><span></span></label></div>
               <div style="margin-top:8px"><button class="btn primary" id="btn-save">Enregistrer les réglages</button></div>
             </div>
           </div>
           <div class="stack">
+            <div class="panel">
+              <div class="panel-h"><h2>Dialer</h2><span class="sub" id="dl-state"></span></div>
+              <div class="panel-b">
+                <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
+                  <div class="field"><label for="c-obj-appels">Appels par jour</label><input id="c-obj-appels" type="number" min="1" inputmode="numeric"></div>
+                  <div class="field"><label for="c-obj-rdv">RDV par jour</label><input id="c-obj-rdv" type="number" min="1" inputmode="numeric"></div>
+                  <div class="field"><label for="c-max">Tentatives max</label><input id="c-max" type="number" min="1" max="10" inputmode="numeric"></div>
+                </div>
+                <p class="muted small" style="margin:0">Un prospect en messagerie ou sans réponse revient dans la file 2 heures plus tard, jusqu'au nombre de tentatives choisi.</p>
+              </div>
+            </div>
             <div class="panel">
               <div class="panel-h"><h2>GoHighLevel</h2></div>
               <div class="panel-b">
@@ -187,7 +257,15 @@
   <p id="modal-txt"></p>
   <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" id="modal-no">Annuler</button><button class="btn primary" id="modal-yes">Confirmer</button></div>
 </div></div>
+<div class="modal" id="imp"><div class="box" style="max-width:520px">
+  <h2 style="font-size:17px;margin-bottom:4px" id="imp-title">Importer</h2>
+  <p class="muted small" id="imp-sub" style="margin:0 0 18px"></p>
+  <div id="imp-body"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button class="btn ghost" id="imp-no">Annuler</button><button class="btn primary" id="imp-go">Importer</button></div>
+</div></div>
 <div class="toast" id="toast"></div>
-<script src="/app.js?v=2"></script>
+<script src="/vendor/twilio/twilio.min.js" defer></script>
+<script src="/app.js?v=3"></script>
+<script src="/dialer.js?v=3"></script>
 </body>
 </html>

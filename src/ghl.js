@@ -3,13 +3,16 @@ const config = require("./config");
 
 const BASE = "https://services.leadconnectorhq.com";
 
-async function ghl(path, { version = "2021-04-15", raw = false } = {}) {
+async function ghl(path, { version = "2021-04-15", raw = false, method = "GET", body } = {}) {
   const res = await fetch(BASE + path, {
+    method,
     headers: {
       Authorization: `Bearer ${config.ghlApiKey}`,
       Version: version,
       Accept: raw ? "*/*" : "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
     },
+    body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -60,4 +63,57 @@ async function getContactName(contactId) {
   }
 }
 
-module.exports = { listCalls, getRecording, getContactName };
+async function listTags() {
+  const d = await ghl(`/locations/${encodeURIComponent(config.ghlLocationId)}/tags`, { version: "2021-07-28" });
+  return (d.tags || []).map((t) => t.name).sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+const cap = (s) => (s ? String(s).replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase()) : "");
+
+// Tous les contacts portant un tag (jusqu'à `max`)
+async function contactsByTag(tag, max = 3000) {
+  const out = [];
+  let searchAfter = null;
+  for (let i = 0; i < 40 && out.length < max; i++) {
+    const body = {
+      locationId: config.ghlLocationId,
+      pageLimit: 100,
+      filters: [{ field: "tags", operator: "contains", value: tag }],
+    };
+    if (searchAfter) body.searchAfter = searchAfter; else body.page = 1;
+    const d = await ghl(`/contacts/search`, { method: "POST", body, version: "2021-07-28" });
+    const list = d.contacts || [];
+    for (const c of list) {
+      const first = c.firstName || cap(c.firstNameLowerCase);
+      const last = c.lastName || cap(c.lastNameLowerCase);
+      out.push({
+        ghl_contact_id: c.id,
+        name: [first, last].filter(Boolean).join(" ") || c.contactName || null,
+        company: c.companyName ? String(c.companyName).split(/\s[|·]\s|·/)[0].trim() : null,
+        phone: c.phone,
+        email: c.email || null,
+        city: c.city || null,
+      });
+    }
+    if (list.length < 100) break;
+    searchAfter = list[list.length - 1].searchAfter;
+    if (!searchAfter) break;
+  }
+  return out;
+}
+
+// Note + tag sur le contact après un appel (nécessite le droit contacts.write)
+async function logOutcome(contactId, { title, body, tag }) {
+  if (!contactId) return { ok: false };
+  const res = { ok: true };
+  try {
+    await ghl(`/contacts/${encodeURIComponent(contactId)}/notes`, { method: "POST", body: { title, body }, version: "2021-07-28" });
+  } catch (e) { res.ok = false; res.error = e.message; }
+  if (tag) {
+    try { await ghl(`/contacts/${encodeURIComponent(contactId)}/tags`, { method: "POST", body: { tags: [tag] }, version: "2021-07-28" }); }
+    catch (e) { res.ok = false; res.error = e.message; }
+  }
+  return res;
+}
+
+module.exports = { listCalls, getRecording, getContactName, listTags, contactsByTag, logOutcome };

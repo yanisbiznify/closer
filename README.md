@@ -39,6 +39,10 @@ S'installe sur ton téléphone comme une vraie app (PWA).
 | `ANTHROPIC_MODEL` | *(optionnel)* par défaut `claude-sonnet-5-5` |
 | `DEEPGRAM_MODEL` | *(optionnel)* par défaut `nova-3` (repli automatique sur `nova-2`) |
 | `SYNC_INTERVAL_MIN` | *(optionnel)* fréquence de synchro GHL, par défaut `10` |
+| `TWILIO_ACCOUNT_SID` | *(dialer)* identifiant du compte Twilio (commence par `AC`) |
+| `TWILIO_AUTH_TOKEN` | *(dialer)* jeton d'authentification Twilio |
+| `TWILIO_CALLER_ID` | *(dialer)* le numéro affiché chez tes prospects, au format `+33…` |
+| `PUBLIC_URL` | *(optionnel)* adresse publique de l'app ; Railway la fournit déjà automatiquement |
 
 Le fichier `.env.example` récapitule ces variables.
 
@@ -49,7 +53,20 @@ Dans ton sous-compte Biznify : **Settings → Private Integrations → Create ne
 - `View Conversation Messages` (conversations/message.readonly)
 - `View Contacts` (contacts.readonly)
 
+Pour que le dialer importe tes listes et note le résultat de chaque appel dans GHL, ajoute aussi :
+- `View Tags` (locations/tags.readonly)
+- `Edit Contacts` (contacts.write)
+
 Copie le jeton dans `GHL_API_KEY`.
+
+**Twilio (pour le dialer)**
+1. Crée un compte sur [twilio.com](https://www.twilio.com).
+2. Choisis le numéro à afficher :
+   - soit tu achètes un numéro français (Phone Numbers → Buy a number) ; Twilio te demandera un justificatif d'adresse ;
+   - soit tu vérifies ton numéro actuel (Phone Numbers → Verified Caller IDs).
+3. Copie l'Account SID et l'Auth Token (page d'accueil de la console) dans Railway, avec ton numéro dans `TWILIO_CALLER_ID`.
+
+Au démarrage, CLOSER crée tout seul l'application Twilio et la clé dont le navigateur a besoin. Tu n'as rien d'autre à configurer.
 
 **Deepgram**
 Crée un compte sur [console.deepgram.com](https://console.deepgram.com) : 200 $ de crédit offert, soit des centaines d'heures d'appels. Crée ensuite une clé API.
@@ -65,6 +82,16 @@ Ouvre ton adresse Railway sur ton téléphone :
 ---
 
 ## Comment ça marche
+
+### Dialer
+- **Prospects** : importe une liste depuis un tag GoHighLevel ou depuis un fichier CSV. Les numéros sont convertis au format international automatiquement.
+- **File d'appels** : les rappels prévus passent en premier, puis les prospects jamais appelés, puis ceux à retenter (messagerie, pas de réponse, barrage). Un prospect à retenter revient 2 heures plus tard, jusqu'au nombre de tentatives choisi.
+- **Pendant l'appel** : ton script s'affiche avec le prénom du prospect, ainsi que ta bibliothèque d'objections. Tu as aussi un minuteur, un bouton pour couper le micro et un clavier.
+- **Après l'appel** : qualifie le résultat en un clic (touches 1 à 7). Les rappels sont datés. Une note et un tag (`closer-rdv`, `closer-rappel`…) sont ajoutés au contact dans GHL.
+- **Appel automatique** : si tu l'actives, le prospect suivant est appelé 3 secondes après ta qualification.
+- Chaque appel est enregistré (deux voix séparées), transcrit et analysé comme les autres. Tu peux le réécouter dans sa fiche.
+
+### Analyse
 
 - **Automatique** : toutes les 10 minutes, CLOSER récupère tes nouveaux appels GHL. Chaque appel décroché qui a un enregistrement est transcrit (Deepgram, en français, voix séparées) puis analysé (Claude). Seuls les appels passés **après l'installation** sont analysés automatiquement.
 - **Historique** : dans l'onglet *Appels*, le bouton « Analyser tout l'historique » traite tes anciens appels. Tu peux aussi analyser un appel en le touchant.

@@ -4,6 +4,7 @@ const { q, getSettings } = require("./db");
 const ghl = require("./ghl");
 const { transcribe } = require("./transcribe");
 const { analyzeCall } = require("./analyze");
+const tw = require("./twilio");
 
 const MIN_WORDS = 25; // en dessous : messagerie, barrage ou raccroché → pas d'analyse
 
@@ -107,6 +108,7 @@ async function processCall(id) {
     await q(`UPDATE calls SET status='transcribing', error=NULL, updated_at=now() WHERE id=$1`, [id]);
     let audio;
     if (c.source === "ghl") audio = await ghl.getRecording(id);
+    else if (c.source === "dialer" && c.recording_url) audio = await tw.downloadRecording(c.recording_url);
     else if (c.audio) audio = { buffer: c.audio, type: c.audio_type };
     else throw new Error("Aucun audio ni transcription pour cet appel");
     const t = await transcribe(audio.buffer, audio.type);

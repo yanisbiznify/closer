@@ -6,6 +6,9 @@ const config = require("./src/config");
 const { q, migrate, getSettings, saveSettings } = require("./src/db");
 const worker = require("./src/worker");
 const { coachReport } = require("./src/analyze");
+const dialer = require("./src/dialer");
+const tw = require("./src/twilio");
+const ghlApi = require("./src/ghl");
 
 const app = express();
 app.disable("x-powered-by");
@@ -80,16 +83,19 @@ app.post("/api/webhook/ghl", (req, res) => {
   res.json({ ok: true });
 });
 
+/* ---------- Webhooks Twilio (signature vérifiée) ---------- */
+app.use("/api/twilio", dialer.hooks);
+
 /* ---------- API ---------- */
 const api = express.Router();
 api.use(requireAuth);
 
 api.get("/me", async (req, res) => {
-  res.json({ ok: true, missing: config.missing(), worker: worker.state(), model: config.anthropicModel });
+  res.json({ ok: true, missing: config.missing(), dialerMissing: tw.missing(), worker: worker.state(), model: config.anthropicModel });
 });
 
 const LIST_COLS = `id, source, date, direction, phone, contact_name, label, duration, call_status, has_recording,
-  status, error, score, issue, analyzed_at,
+  status, error, score, issue, analyzed_at, lead_id, outcome,
   CASE WHEN analysis IS NULL THEN NULL ELSE jsonb_build_object(
     'score', analysis->'score', 'issue', analysis->'issue', 'prospect', analysis->'prospect',
     'priorite', analysis->'priorite', 'etapes', analysis->'etapes') END AS summary`;
@@ -100,8 +106,24 @@ api.get("/calls", async (req, res) => {
   res.json({ calls: r.rows, counts: Object.fromEntries(counts.rows.map((x) => [x.status, x.n])), worker: worker.state() });
 });
 
+// Écoute de l'enregistrement
+api.get("/calls/:id/audio", async (req, res) => {
+  const r = await q(`SELECT id, source, recording_url, has_recording FROM calls WHERE id=$1`, [req.params.id]);
+  const c = r.rows[0];
+  if (!c || !c.has_recording) return res.status(404).json({ error: "Pas d'enregistrement" });
+  try {
+    const a = c.source === "dialer" ? await tw.downloadRecording(c.recording_url) : c.source === "ghl" ? await ghlApi.getRecording(c.id) : null;
+    if (!a) return res.status(404).json({ error: "Pas d'enregistrement" });
+    res.setHeader("Content-Type", a.type || "audio/mpeg");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(a.buffer);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 api.get("/calls/:id", async (req, res) => {
-  const r = await q(`SELECT id, source, date, direction, phone, contact_name, label, duration, status, error, transcript, analysis, score, issue, analyzed_at FROM calls WHERE id=$1`, [req.params.id]);
+  const r = await q(`SELECT id, source, date, direction, phone, contact_name, label, duration, status, error, transcript, analysis, score, issue, analyzed_at, has_recording, lead_id, outcome FROM calls WHERE id=$1`, [req.params.id]);
   if (!r.rows.length) return res.status(404).json({ error: "Appel introuvable" });
   res.json(r.rows[0]);
 });
@@ -178,6 +200,10 @@ api.put("/settings", async (req, res) => {
   if (typeof b.offre === "string") patch.offre = b.offre.trim().slice(0, 3000);
   if (b.minDuree !== undefined) patch.minDuree = Math.max(0, Math.min(600, parseInt(b.minDuree) || 0));
   if (b.autoAnalyze !== undefined) patch.autoAnalyze = !!b.autoAnalyze;
+  if (typeof b.script === "string") patch.script = b.script.slice(0, 8000);
+  if (b.objectifAppels !== undefined) patch.objectifAppels = Math.max(1, Math.min(500, parseInt(b.objectifAppels) || 50));
+  if (b.objectifRdv !== undefined) patch.objectifRdv = Math.max(1, Math.min(100, parseInt(b.objectifRdv) || 3));
+  if (b.maxTentatives !== undefined) patch.maxTentatives = Math.max(1, Math.min(10, parseInt(b.maxTentatives) || 3));
   res.json(await saveSettings(patch));
 });
 
@@ -199,9 +225,11 @@ api.post("/bilan", async (req, res) => {
   }
 });
 
+api.use(dialer.api);
 app.use("/api", api);
 
 /* ---------- Front ---------- */
+app.use("/vendor/twilio", express.static(path.join(__dirname, "node_modules/@twilio/voice-sdk/dist"), { maxAge: "7d" }));
 // HTML, JS, CSS et service worker : toujours revalidés, pour voir chaque nouvelle version tout de suite
 app.use(express.static(path.join(__dirname, "public"), {
   extensions: ["html"],
@@ -230,6 +258,7 @@ app.use((err, req, res, next) => {
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER en ligne sur le port ${config.port}`));
   worker.start();
+  if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {
   console.error("Démarrage impossible :", e);
   process.exit(1);

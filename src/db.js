@@ -41,6 +41,38 @@ async function migrate() {
       key   TEXT PRIMARY KEY,
       value JSONB NOT NULL
     );
+    ALTER TABLE calls ADD COLUMN IF NOT EXISTS lead_id INTEGER;
+    ALTER TABLE calls ADD COLUMN IF NOT EXISTS twilio_call_sid TEXT;
+    ALTER TABLE calls ADD COLUMN IF NOT EXISTS recording_url TEXT;
+    ALTER TABLE calls ADD COLUMN IF NOT EXISTS outcome TEXT;
+    CREATE INDEX IF NOT EXISTS calls_lead_idx ON calls (lead_id);
+    CREATE TABLE IF NOT EXISTS lists (
+      id         SERIAL PRIMARY KEY,
+      name       TEXT NOT NULL,
+      source     TEXT NOT NULL DEFAULT 'csv',      -- csv | ghl | manuel
+      source_ref TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS leads (
+      id             SERIAL PRIMARY KEY,
+      list_id        INTEGER REFERENCES lists(id) ON DELETE CASCADE,
+      name           TEXT,
+      company        TEXT,
+      phone          TEXT NOT NULL,
+      email          TEXT,
+      city           TEXT,
+      ghl_contact_id TEXT,
+      status         TEXT NOT NULL DEFAULT 'a_appeler', -- a_appeler | rappel | rdv | pas_interesse | messagerie | injoignable | barrage | mauvais_numero
+      callback_at    TIMESTAMPTZ,
+      notes          TEXT,
+      attempts       INTEGER NOT NULL DEFAULT 0,
+      last_call_at   TIMESTAMPTZ,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (list_id, phone)
+    );
+    CREATE INDEX IF NOT EXISTS leads_status_idx ON leads (status);
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS outcome_at TIMESTAMPTZ;
     CREATE TABLE IF NOT EXISTS bilans (
       id         SERIAL PRIMARY KEY,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -58,6 +90,22 @@ const DEFAULT_SETTINGS = {
   minDuree: 20,
   autoAnalyze: true,
   autoSince: null, // date à partir de laquelle les nouveaux appels sont analysés automatiquement
+  objectifAppels: 50,
+  objectifRdv: 3,
+  maxTentatives: 3,
+  script: `OUVERTURE (4 secondes pour convaincre)
+Bonjour {prénom}, {ton prénom} de Biznify. Je serai bref : j'aide les entreprises du BTP à ne plus perdre de chantiers à cause des appels manqués. Je vous prends 30 secondes ?
+
+QUALIFICATION (questions ouvertes)
+- Aujourd'hui, qui répond au téléphone quand vous êtes sur un chantier ?
+- Combien d'appels vous manquez par semaine, à peu près ?
+- Un chantier moyen, ça représente combien pour vous ?
+
+PRÉSENTATION (relier à sa douleur)
+On a une IA qui répond à vos appels 24 h/24, qualifie le client et vous cale le rendez-vous directement dans votre agenda.
+
+CLOSING
+Le plus simple, c'est que je vous montre en 15 minutes. Mardi 10 h ou jeudi 14 h, qu'est-ce qui vous arrange le mieux ?`,
 };
 
 async function getSettings() {
