@@ -117,7 +117,7 @@ function renderPhone() {
         <button class="ph-c ${P.script ? "on" : ""}" id="ph-script"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Script</span></button>
         <button class="ph-c end" id="ph-end">${P_ICON_END}<span>Raccrocher</span></button>
       </div>
-      ${P.pad ? `<div class="keypad" style="margin:12px auto 0">${"123456789*0#".split("").map((k) => `<button data-k="${k}">${k}</button>`).join("")}</div>` : ""}
+      ${P.pad ? `<div class="ph-pad">${[["1",""],["2","ABC"],["3","DEF"],["4","GHI"],["5","JKL"],["6","MNO"],["7","PQRS"],["8","TUV"],["9","WXYZ"],["*",""],["0","+"],["#",""]].map(([k, l]) => `<button data-k="${k}"><b>${k}</b><small>${l}</small></button>`).join("")}</div><div class="ph-digits" id="ph-digits"></div>` : ""}
       ${P.script ? `<div class="ph-script">${typeof renderScript === "function" ? renderScript(l) : ""}</div>` : ""}
       <textarea id="ph-notes" placeholder="Notes pendant l'appel…" style="margin-top:12px;min-height:64px;font-size:13px">${esc(l.notes || "")}</textarea>
     </div>`;
@@ -137,10 +137,15 @@ function renderPhone() {
   on("#ph-x", phoneClose);
   on("#ph-end", () => P.call ? P.call.disconnect() : phoneEnded());
   on("#ph-mute", () => { if (!P.call) return; P.muted = !P.muted; P.call.mute(P.muted); renderPhone(); });
-  on("#ph-pad", () => { P.pad = !P.pad; renderPhone(); });
+  on("#ph-pad", () => { P.pad = !P.pad; P.digits = ""; renderPhone(); });
   on("#ph-script", () => { P.script = !P.script; renderPhone(); });
   on("#ph-cbok", () => phoneOutcome("rappel", $("#ph-cbat").value));
-  const kp = el.querySelector(".keypad"); if (kp) kp.onclick = (e) => { const b = e.target.closest("[data-k]"); if (b && P.call) P.call.sendDigits(b.dataset.k); };
+  const kp = el.querySelector(".ph-pad"); if (kp) kp.onclick = (e) => {
+    const b = e.target.closest("[data-k]"); if (!b) return;
+    if (P.call) P.call.sendDigits(b.dataset.k);
+    P.digits = ((P.digits || "") + b.dataset.k).slice(-24);
+    const d = $("#ph-digits"); if (d) d.textContent = P.digits;
+  };
   const oc = el.querySelector(".ph-out"); if (oc) oc.onclick = (e) => { const b = e.target.closest("[data-out]"); if (b) phoneOutcome(b.dataset.out); };
   const n = $("#ph-notes"); if (n) n.oninput = () => { l.notes = n.value; };
 }
