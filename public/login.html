@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connexion — CLOSER</title>
+<meta name="theme-color" content="#0B0B0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="login">
+  <form class="box" id="f">
+    <img class="logo" src="/brand/icon-192.png" alt="">
+    <h1>CLOSER</h1>
+    <p>Reste sur la ligne. Close plus.</p>
+    <input type="password" id="pw" placeholder="Mot de passe" autocomplete="current-password" required>
+    <button class="btn full" style="margin-top:12px" id="go">Entrer</button>
+    <div id="err" class="small" style="color:var(--raccroche);margin-top:12px;min-height:18px"></div>
+  </form>
+</div>
+<script>
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("go"); btn.disabled = true;
+  try {
+    const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: document.getElementById("pw").value }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Connexion impossible");
+    location.href = "/";
+  } catch (err) { document.getElementById("err").textContent = err.message; btn.disabled = false; }
+});
+</script>
+</body>
+</html>

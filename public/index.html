@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CLOSER — Ton coach de cold call</title>
+<meta name="description" content="Reste sur la ligne. Close plus. Chaque appel analysé selon la méthode Straight Line.">
+<meta name="theme-color" content="#0B0B0F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CLOSER">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/brand/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<meta property="og:title" content="CLOSER">
+<meta property="og:image" content="/brand/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="app-header">
+  <img src="/brand/wordmark.svg" alt="CLOSER">
+  <span class="chip" id="chip"><span class="dot"></span><span id="chip-txt">…</span></span>
+</header>
+
+<main>
+  <!-- PROGRÈS -->
+  <section class="view on" id="v-progres">
+    <div class="card hero" id="hero">
+      <div class="small mut">Ta priorité du moment</div>
+      <div class="title" style="font-size:20px;font-weight:700;margin:4px 0 2px" id="hero-prio">Analyse ton premier appel</div>
+      <div class="small mut" id="hero-sub">Chaque appel analysé te rapproche du close.</div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Appels analysés</small><b id="k-n">–</b></div>
+      <div class="kpi"><small>Score moyen · 10 derniers</small><b id="k-avg">–</b><small id="k-delta"></small></div>
+      <div class="kpi"><small>Taux de RDV</small><b id="k-rdv">–</b><small>sur les conversations</small></div>
+      <div class="kpi"><small>Meilleur score</small><b id="k-best">–</b></div>
+    </div>
+    <h2 class="line-title">Évolution du score</h2>
+    <div class="card" id="chart"><span class="mut small">Le graphique apparaît après 2 appels analysés.</span></div>
+    <h2 class="line-title">Les étapes · 10 derniers appels</h2>
+    <div class="card" id="etapes-avg"><span class="mut small">—</span></div>
+    <h2 class="line-title">Bilan du coach</h2>
+    <div class="card">
+      <p class="mut small" style="margin-top:0">Une synthèse de tes 15 derniers appels : erreurs récurrentes et plan pour la semaine.</p>
+      <button class="btn full" id="btn-bilan">Générer mon bilan</button>
+      <div id="bilan"></div>
+    </div>
+  </section>
+
+  <!-- APPELS -->
+  <section class="view" id="v-appels">
+    <div id="calls-top"></div>
+    <div class="filters" id="filters">
+      <button data-f="tous" class="on">Tous</button>
+      <button data-f="faits">Analysés</button>
+      <button data-f="afaire">À analyser</button>
+      <button data-f="encours">En cours</button>
+      <button data-f="courts">Trop courts</button>
+    </div>
+    <div class="card flush" id="calls"><div class="empty"><span class="spin"></span></div></div>
+  </section>
+
+  <!-- AJOUTER -->
+  <section class="view" id="v-ajouter">
+    <div class="card">
+      <h3 style="margin-top:0">Importer un enregistrement</h3>
+      <p class="mut small" style="margin-top:0">Un appel passé hors GHL, un mémo vocal, un jeu de rôle avec un ami : CLOSER le transcrit et l'analyse.</p>
+      <label>Prospect / entreprise (optionnel)</label>
+      <input id="u-nom" placeholder="Ex. Dupont Rénovation">
+      <label class="drop" for="u-file" id="u-drop" style="margin-top:12px;color:var(--ivoire)">
+        <b>Choisir un fichier audio</b><br><span class="small mut">mp3, m4a, wav… jusqu'à 60 Mo</span>
+      </label>
+      <input type="file" id="u-file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.ogg,.webm" hidden>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Coller une transcription</h3>
+      <p class="mut small" style="margin-top:0">Idéalement avec qui parle : « Moi : … / Prospect : … ».</p>
+      <label>Prospect / entreprise (optionnel)</label>
+      <input id="p-nom" placeholder="Ex. Martin BTP">
+      <label>Transcription</label>
+      <textarea id="p-txt" style="min-height:200px" placeholder="Moi : Bonjour Monsieur Martin, Yanis de Biznify…&#10;Prospect : Oui ?"></textarea>
+      <div style="margin-top:12px"><button class="btn full" id="btn-coller">Analyser</button></div>
+    </div>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section class="view" id="v-reglages">
+    <div id="cfg-warn"></div>
+    <div class="card">
+      <h3 style="margin-top:0">Ton contexte</h3>
+      <label>Ton prénom</label>
+      <input id="c-prenom">
+      <label>Ton offre et l'objectif de tes appels</label>
+      <textarea id="c-offre" style="min-height:150px"></textarea>
+      <label>Ignorer les appels de moins de (secondes)</label>
+      <input id="c-min" type="number" min="0" step="5" inputmode="numeric">
+      <div class="switch"><div><b>Analyse automatique</b><div class="small mut">Chaque nouvel appel GHL décroché est transcrit et analysé tout seul.</div></div><input type="checkbox" id="c-auto"></div>
+      <div style="margin-top:16px"><button class="btn full" id="btn-save">Enregistrer</button></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Synchronisation GHL</h3>
+      <p class="small mut" style="margin-top:0" id="sync-info">—</p>
+      <div class="row"><button class="btn sec" id="btn-sync" style="flex:1">Synchroniser</button><button class="btn ghost" id="btn-sync-full" style="flex:1">Tout l'historique</button></div>
+    </div>
+    <div class="notice"><b>Rappel légal (France) :</b> préviens ton interlocuteur que l'appel est enregistré, par exemple : « Je vous préviens, l'appel est enregistré pour la qualité. »</div>
+    <div class="row">
+      <a class="btn ghost" href="/marque" style="flex:1;text-align:center;text-decoration:none">Guide de marque</a>
+      <button class="btn ghost" id="btn-logout" style="flex:1">Se déconnecter</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-v="progres" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>Progrès</button>
+  <button data-v="appels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>Appels</button>
+  <button data-v="ajouter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Ajouter</button>
+  <button data-v="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Réglages</button>
+</nav>
+
+<div class="sheet" id="sheet">
+  <div class="top">
+    <button class="btn sec" id="sheet-close" aria-label="Retour">←</button>
+    <div style="flex:1;min-width:0"><b id="sheet-title" class="title" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Appel</b><div class="small mut" id="sheet-sub"></div></div>
+  </div>
+  <div class="body" id="sheet-body"></div>
+</div>
+
+<div class="modal" id="modal"><div class="card">
+  <p id="modal-txt" style="margin-top:0"></p>
+  <div class="row" style="justify-content:flex-end"><button class="btn sec" id="modal-no">Annuler</button><button class="btn" id="modal-yes">Confirmer</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
