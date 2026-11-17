@@ -8,12 +8,16 @@ const worker = require("./src/worker");
 const { coachReport } = require("./src/analyze");
 const dialer = require("./src/dialer");
 const calendar = require("./src/calendar");
+const billing = require("./src/billing");
+const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
 
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
+// Webhook Stripe : corps brut pour vérifier la signature, avant le parseur JSON
+app.post("/api/stripe/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res, next) => billing.webhook(req, res).catch(next));
 app.use(express.json({ limit: "2mb" }));
 
 /* ---------- Session (cookie signé, un seul utilisateur) ---------- */
@@ -228,7 +232,11 @@ api.post("/bilan", async (req, res) => {
 
 api.use(dialer.api);
 api.use(calendar.api);
+api.use(billing.api);
 app.use("/api", api);
+
+/* ---------- Factures publiques (lien envoyé au client) ---------- */
+app.use(billing.publicRoutes(authed));
 
 /* ---------- Front ---------- */
 app.use("/vendor/xlsx", express.static(path.join(__dirname, "node_modules/xlsx/dist"), { maxAge: "7d" }));
@@ -249,6 +257,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || "Erreur serveur" });
 });
 
+process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e && e.message ? e.message : e));
+
 /* ---------- Démarrage ---------- */
 (async () => {
   const miss = config.missing();
@@ -261,6 +271,7 @@ app.use((err, req, res, next) => {
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();
+  if (stripe.enabled()) stripe.ensureWebhook().then(() => console.log(`Stripe prêt (${stripe.mode()})`)).catch((e) => console.warn("Stripe :", e.message));
   if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {
   console.error("Démarrage impossible :", e);

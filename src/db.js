@@ -1,4 +1,7 @@
-const { Pool } = require("pg");
+const { Pool, types } = require("pg");
+
+// Les colonnes DATE restent des chaînes « AAAA-MM-JJ » (pas de décalage de fuseau)
+types.setTypeParser(1082, (v) => v);
 const config = require("./config");
 
 const pool = new Pool({
@@ -101,6 +104,44 @@ async function migrate() {
       attendee_email  TEXT,
       status          TEXT NOT NULL DEFAULT 'planifie',
       created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS invoices (
+      id                SERIAL PRIMARY KEY,
+      number            TEXT NOT NULL UNIQUE,
+      token             TEXT NOT NULL UNIQUE,
+      lead_id           INTEGER,
+      title             TEXT,
+      client            JSONB NOT NULL DEFAULT '{}',
+      items             JSONB NOT NULL DEFAULT '[]',
+      currency          TEXT NOT NULL DEFAULT 'eur',
+      vat_rate          NUMERIC(5,2) NOT NULL DEFAULT 0,
+      subtotal_cents    INTEGER NOT NULL DEFAULT 0,
+      vat_cents         INTEGER NOT NULL DEFAULT 0,
+      total_cents       INTEGER NOT NULL DEFAULT 0,
+      issue_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+      due_date          DATE,
+      notes             TEXT,
+      status            TEXT NOT NULL DEFAULT 'emise',   -- emise | payee | annulee
+      payment_link_id   TEXT,
+      payment_link_url  TEXT,
+      stripe_session_id TEXT,
+      paid_at           TIMESTAMPTZ,
+      paid_via          TEXT,
+      viewed_at         TIMESTAMPTZ,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS payment_links (
+      id           SERIAL PRIMARY KEY,
+      label        TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      currency     TEXT NOT NULL DEFAULT 'eur',
+      lead_id      INTEGER,
+      stripe_id    TEXT,
+      url          TEXT,
+      active       BOOLEAN NOT NULL DEFAULT true,
+      paid_count   INTEGER NOT NULL DEFAULT 0,
+      paid_cents   INTEGER NOT NULL DEFAULT 0,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE TABLE IF NOT EXISTS bilans (
       id         SERIAL PRIMARY KEY,

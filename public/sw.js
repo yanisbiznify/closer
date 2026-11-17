@@ -1,5 +1,5 @@
 // Service worker minimal : rend l'app installable et garde l'interface disponible hors ligne.
-const CACHE = "closer-pro-v2";
+const CACHE = "closer-pro-v3";
 const SHELL = ["/", "/app.css", "/app.js", "/login", "/brand/wordmark.svg", "/brand/icon-192.png", "/brand/mark.svg"];
 
 self.addEventListener("install", (e) => {
@@ -10,7 +10,7 @@ self.addEventListener("activate", (e) => {
 });
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
+  if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/") || url.pathname.startsWith("/facture/")) return;
   // Réseau d'abord, cache en secours
   e.respondWith(
     fetch(e.request, { cache: "no-cache" })

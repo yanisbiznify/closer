@@ -32,6 +32,10 @@ const config = {
   // Agenda (Google)
   googleClientId: env("GOOGLE_CLIENT_ID"),
   googleClientSecret: env("GOOGLE_CLIENT_SECRET"),
+
+  // Paiements (Stripe)
+  stripeSecretKey: env("STRIPE_SECRET_KEY"),
+  stripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET"),
 };
 
 // Secret de session : dérivé du mot de passe si non fourni

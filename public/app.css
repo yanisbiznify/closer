@@ -506,3 +506,31 @@ audio{width:100%;height:36px;margin:4px 0 18px;filter:invert(.92) hue-rotate(180
   .auth{grid-template-columns:1fr}
   .auth-art{min-height:42vh;padding:32px 28px}
 }
+
+/* ---------- Factures ---------- */
+.bm-box{max-height:calc(100vh - 40px);overflow:auto}
+.bm-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;position:sticky;bottom:-22px;background:var(--panel);padding:12px 0 0}
+.bi-2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.bi-3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 14px}
+.bi-lines{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+.bi-line{display:grid;grid-template-columns:minmax(0,1fr) 64px 120px 100px 36px;gap:8px;align-items:center}
+.bi-line.bi-h span{font-size:12px;color:var(--mut)}
+.bi-lt{text-align:right;font-size:13px;color:var(--text-2)}
+.bi-line.bi-h span:nth-child(4){text-align:right}
+.bi-rm{padding:6px 8px;font-size:16px}
+.bi-total{display:flex;justify-content:flex-end;gap:22px;flex-wrap:wrap;padding:12px 14px;margin:0 0 18px;border-radius:var(--r);background:var(--raised);color:var(--mut);font-size:13px}
+.bi-total b{color:var(--text-2);font-weight:600;margin-left:6px}
+.bi-total .tt b{color:var(--or);font-size:15px}
+.bl-detail .bl-st{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.bl-url{display:flex;gap:8px;margin-bottom:16px}
+.bl-url input{flex:1;min-width:0;font-size:12.5px;color:var(--text-2)}
+.bl-acts{display:flex;gap:8px;flex-wrap:wrap}
+.bl-acts.sec{margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.bl-acts .bl-del{color:var(--bad);margin-left:auto}
+.bl-links tbody tr{cursor:default}
+.bs-logo{display:flex;align-items:center;gap:18px;margin-bottom:20px}
+.bs-prev{width:180px;height:72px;border-radius:var(--r);background:#fff;display:flex;align-items:center;justify-content:center;padding:12px;flex:none}
+.bs-prev img{max-width:100%;max-height:100%}
+.bs-logo label.btn{cursor:pointer}
+.bs-logo .hint{margin-top:6px}
+@media (max-width:860px){.bi-2,.bi-3{grid-template-columns:1fr}.bi-line{grid-template-columns:minmax(0,1fr) 54px 90px 32px}.bi-line .bi-lt,.bi-line.bi-h span:nth-child(4){display:none}.bs-logo{flex-direction:column;align-items:flex-start}}

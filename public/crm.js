@@ -132,6 +132,7 @@ async function renderLead() {
       <button class="btn primary" id="ld-call" ${l.phone ? "" : "disabled"}>${ICON_PHONE.replace("<svg", '<svg width="15" height="15"')}Appeler ${esc(fmtPhone(l.phone))}</button>
       ${maps ? `<a class="btn ghost" href="${esc(maps)}" target="_blank" rel="noopener">${ICON_MAP.replace("<svg", '<svg width="15" height="15"')}${l.maps_url ? "Fiche Google Maps" : "Chercher sur Google Maps"}</a>` : ""}
       <button class="btn ghost" id="ld-book">Planifier un RDV</button>
+      <button class="btn ghost" id="ld-bill">Facturer</button>
       ${l.website ? `<a class="btn ghost" href="${esc(/^https?:/.test(l.website) ? l.website : "https://" + l.website)}" target="_blank" rel="noopener">Site web</a>` : ""}
     </div>
     <div class="ld-stage"><label for="ld-stage">Étape du pipeline</label>
@@ -147,6 +148,7 @@ async function renderLead() {
   $("#ld-call").onclick = () => phoneCall(LD.lead, { onDone: () => { if ($("#v-pipeline").classList.contains("on")) loadPipeline(); } });
   $("#ld-stage").onchange = (e) => saveLead({ stage: e.target.value });
   $("#ld-book").onclick = () => { const lead = LD.lead; closeLead(); openBooking({ lead }); };
+  $("#ld-bill").onclick = () => { const lead = LD.lead; closeLead(); openInvoiceEditor({ lead }); };
   $$("#ld-body [data-f]").forEach((inp) => inp.addEventListener("change", () => {
     const k = inp.dataset.f; let v = inp.value;
     saveLead({ [k]: v });
