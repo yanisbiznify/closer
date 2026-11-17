@@ -105,7 +105,10 @@ async function handleSession(s) {
   }
   if (invId) { await markPaid(invId, s.payment_link ? "lien Stripe" : "carte (facture)", s.id); return; }
   if (s.payment_link) {
-    await q(`UPDATE payment_links SET paid_count=paid_count+1, paid_cents=paid_cents+$2 WHERE stripe_id=$1`, [s.payment_link, s.amount_total || 0]);
+    const l = (await q(`SELECT id FROM payment_links WHERE stripe_id=$1`, [s.payment_link])).rows[0];
+    if (!l) return;
+    const ins = await q(`INSERT INTO link_payments (link_id, session_id, amount_cents) VALUES ($1,$2,$3) ON CONFLICT (session_id) DO NOTHING RETURNING id`, [l.id, s.id, s.amount_total || 0]);
+    if (ins.rows[0]) await q(`UPDATE payment_links SET paid_count=paid_count+1, paid_cents=paid_cents+$2 WHERE id=$1`, [l.id, s.amount_total || 0]);
   }
 }
 

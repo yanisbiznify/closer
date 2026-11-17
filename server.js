@@ -9,6 +9,7 @@ const { coachReport } = require("./src/analyze");
 const dialer = require("./src/dialer");
 const calendar = require("./src/calendar");
 const billing = require("./src/billing");
+const revenue = require("./src/revenue");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -209,6 +210,7 @@ api.put("/settings", async (req, res) => {
   if (b.objectifAppels !== undefined) patch.objectifAppels = Math.max(1, Math.min(500, parseInt(b.objectifAppels) || 50));
   if (b.objectifRdv !== undefined) patch.objectifRdv = Math.max(1, Math.min(100, parseInt(b.objectifRdv) || 3));
   if (b.maxTentatives !== undefined) patch.maxTentatives = Math.max(1, Math.min(10, parseInt(b.maxTentatives) || 3));
+  if (b.objectifCA !== undefined) patch.objectifCA = Math.max(0, Math.min(10000000, Math.round(Number(b.objectifCA) || 0)));
   res.json(await saveSettings(patch));
 });
 
@@ -233,6 +235,7 @@ api.post("/bilan", async (req, res) => {
 api.use(dialer.api);
 api.use(calendar.api);
 api.use(billing.api);
+api.use(revenue.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */

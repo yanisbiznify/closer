@@ -143,6 +143,13 @@ async function migrate() {
       paid_cents   INTEGER NOT NULL DEFAULT 0,
       created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS link_payments (
+      id           SERIAL PRIMARY KEY,
+      link_id      INTEGER REFERENCES payment_links(id) ON DELETE SET NULL,
+      session_id   TEXT UNIQUE,
+      amount_cents INTEGER NOT NULL,
+      paid_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS bilans (
       id         SERIAL PRIMARY KEY,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -163,6 +170,7 @@ const DEFAULT_SETTINGS = {
   objectifAppels: 50,
   objectifRdv: 3,
   maxTentatives: 3,
+  objectifCA: 10000, // objectif de chiffre d'affaires encaissé par mois, en euros
   script: `OUVERTURE (4 secondes pour convaincre)
 Bonjour {prénom}, {ton prénom} de Biznify. Je serai bref : j'aide les entreprises du BTP à ne plus perdre de chantiers à cause des appels manqués. Je vous prends 30 secondes ?
 

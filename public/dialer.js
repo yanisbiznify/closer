@@ -24,6 +24,7 @@ function onView(v) {
   if (v === "pipeline") loadPipeline();
   if (v === "calendar") loadCalendar();
   if (v === "billing") loadBilling();
+  if (v === "revenue") loadRevenue();
 }
 
 /* ---------- Dialer ---------- */

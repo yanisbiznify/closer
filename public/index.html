@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=8">
+<link rel="stylesheet" href="/app.css?v=9">
 </head>
 <body>
 <div class="shell">
@@ -26,6 +26,7 @@
     <div class="brand"><img src="/brand/mark-tight.svg" alt="" style="height:22px"><img src="/brand/wordmark.svg" alt="CLOSER PRO" style="height:15px"></div>
     <nav class="nav" id="nav">
       <button data-v="dashboard" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="12" r="2.2"/></svg>Tableau de bord</button>
+      <button data-v="revenue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="6" rx="1"/><rect x="10.5" y="8" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="14" rx="1"/></svg>Chiffre d'affaires</button>
       <button data-v="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>Pipeline</button>
       <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="12" cy="15" r="1.4" fill="currentColor"/></svg>Agenda</button>
       <button data-v="billing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v19l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Factures</button>
@@ -89,6 +90,32 @@
 
 
       <!-- PIPELINE (CRM) -->
+      <section class="view" id="v-revenue">
+        <div class="head">
+          <div><h1>Chiffre d'affaires</h1><p>Ce que tu encaisses, mois après mois, face à ton objectif.</p></div>
+          <div class="actions">
+            <div class="seg rv-month"><button id="rv-prev" aria-label="Mois précédent">‹</button><span id="rv-label">—</span><button id="rv-next" aria-label="Mois suivant">›</button></div>
+            <button class="btn ghost" id="rv-goal-btn">Objectif</button>
+          </div>
+        </div>
+        <div class="panel rv-hero" id="rv-hero"></div>
+        <div class="kpis" id="rv-kpis"></div>
+        <div class="grid g-2" style="margin-bottom:20px">
+          <div class="panel">
+            <div class="panel-h"><h2>Encaissé par mois</h2><button class="btn quiet" id="rv-table-btn" aria-pressed="false">Voir en tableau</button></div>
+            <div class="panel-b" id="rv-chart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><h2>Du premier appel au paiement</h2><span class="sub" id="rv-funnel-sub"></span></div>
+            <div class="panel-b" id="rv-funnel"></div>
+          </div>
+        </div>
+        <div class="grid" style="grid-template-columns:1fr 1fr">
+          <div class="panel"><div class="panel-h"><h2>Revenus par source</h2><span class="sub">12 derniers mois</span></div><div class="panel-b" id="rv-source"></div></div>
+          <div class="panel"><div class="panel-h"><h2>Revenus par liste d'appels</h2><span class="sub">12 derniers mois</span></div><div class="panel-b" id="rv-list"></div></div>
+        </div>
+      </section>
+
       <section class="view" id="v-pipeline">
         <div class="head">
           <div><h1>Pipeline</h1><p id="pl-sum">Tes prospects, de la première prise de contact à la signature.</p></div>
@@ -346,12 +373,13 @@
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/vendor/twilio/twilio.min.js" defer></script>
-<script src="/app.js?v=9"></script>
+<script src="/app.js?v=10"></script>
 <script src="/vendor/xlsx/xlsx.full.min.js" defer></script>
 <script src="/phone.js?v=7"></script>
-<script src="/dialer.js?v=8"></script>
+<script src="/dialer.js?v=9"></script>
 <script src="/crm.js?v=8"></script>
 <script src="/calendar.js?v=7"></script>
-<script src="/billing.js?v=1"></script>
+<script src="/billing.js?v=2"></script>
+<script src="/revenue.js?v=1"></script>
 </body>
 </html>
