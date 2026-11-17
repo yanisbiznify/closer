@@ -53,7 +53,8 @@ async function getContactName(contactId) {
     const c = d.contact || {};
     const name = [c.firstName, c.lastName].filter(Boolean).join(" ").trim() || c.contactName || c.name || "";
     const company = c.companyName || "";
-    return [company, name].filter(Boolean).join(" · ") || null;
+    if (name && company) return `${name} (${company})`;
+    return name || company || null;
   } catch {
     return null;
   }

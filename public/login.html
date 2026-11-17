@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Connexion — CLOSER</title>
-<meta name="theme-color" content="#0B0B0F">
+<title>Connexion · CLOSER</title>
+<meta name="theme-color" content="#111218">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -12,19 +12,28 @@
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css?v=2">
 </head>
 <body>
-<div class="login">
-  <form class="box" id="f">
-    <img class="logo" src="/brand/icon-192.png" alt="">
-    <h1>CLOSER</h1>
-    <p>Reste sur la ligne. Close plus.</p>
-    <input type="password" id="pw" placeholder="Mot de passe" autocomplete="current-password" required>
-    <button class="btn full" style="margin-top:12px" id="go">Entrer</button>
-    <div id="err" class="small" style="color:var(--raccroche);margin-top:12px;min-height:18px"></div>
-  </form>
+<div class="auth">
+  <div class="auth-art">
+    <div class="wm" style="display:flex;align-items:center;gap:10px"><img src="/brand/mark-tight.svg" alt="" style="height:26px"><img src="/brand/wordmark.svg" alt="CLOSER" style="height:18px"></div>
+    <div class="auth-line" aria-hidden="true"></div>
+    <div class="copy">
+      <h1>Reste sur la ligne. Close plus.</h1>
+      <p>Chaque appel de prospection, écouté et noté selon la méthode Straight Line. Tu sais exactement quoi dire au prochain.</p>
+    </div>
+  </div>
+  <div class="auth-form">
+    <form id="f">
+      <h2>Connexion</h2>
+      <p class="muted">Entre ton mot de passe pour accéder à tes appels.</p>
+      <div class="field"><label for="pw">Mot de passe</label><input type="password" id="pw" autocomplete="current-password" required autofocus></div>
+      <button class="btn primary lg" style="width:100%" id="go">Se connecter</button>
+      <div id="err" class="small c-bad" style="margin-top:12px;min-height:18px" role="alert"></div>
+    </form>
+  </div>
 </div>
 <script>
 document.getElementById("f").addEventListener("submit", async (e) => {
