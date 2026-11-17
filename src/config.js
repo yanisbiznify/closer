@@ -34,6 +34,10 @@ const config = {
   googleClientId: env("GOOGLE_CLIENT_ID"),
   googleClientSecret: env("GOOGLE_CLIENT_SECRET"),
 
+  // Email pro (Resend) : envoi depuis ton adresse sur ton domaine
+  resendApiKey: env("RESEND_API_KEY"),
+  emailFrom: env("EMAIL_FROM"), // ex. contact@biznify.pro
+
   // Paiements (Stripe)
   stripeSecretKey: env("STRIPE_SECRET_KEY"),
   stripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET"),

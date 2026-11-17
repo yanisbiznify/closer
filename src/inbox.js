@@ -51,12 +51,20 @@ function ensureSms(force = false) {
   return smsSetup;
 }
 
+const resendOn = () => !!(config.resendApiKey && config.emailFrom);
+
+// Envoi : Resend (adresse pro) si configuré, sinon Gmail. Réception : toujours via Gmail.
 async function emailStatus() {
   const g = await google.status();
-  if (!g.configured) return { ready: false, connected: false, reason: "Google n'est pas configuré dans Railway" };
-  if (!g.connected) return { ready: false, connected: false, reason: "Connecte ton compte Google pour envoyer des emails" };
-  if (!g.gmail) return { ready: false, connected: true, from: g.email, reason: "Autorise Gmail : reconnecte ton compte Google une fois" };
-  return { ready: true, connected: true, from: g.email, reason: null };
+  const gmailReady = g.configured && g.connected && g.gmail;
+  const receive = gmailReady
+    ? { ready: true, reason: null }
+    : { ready: false, reason: !g.configured ? "Google n'est pas configuré dans Railway" : !g.connected ? "Connecte ton compte Google pour recevoir les réponses" : "Autorise Gmail pour recevoir les réponses : reconnecte ton compte Google une fois" };
+  if (resendOn()) return { ready: true, via: "resend", connected: g.connected, from: config.emailFrom, gmail: g.email || null, receive, reason: null };
+  if (!g.configured) return { ready: false, connected: false, receive, reason: "Google n'est pas configuré dans Railway" };
+  if (!g.connected) return { ready: false, connected: false, receive, reason: "Connecte ton compte Google pour envoyer des emails" };
+  if (!g.gmail) return { ready: false, connected: true, from: g.email, receive, reason: "Autorise Gmail : reconnecte ton compte Google une fois" };
+  return { ready: true, via: "gmail", connected: true, from: g.email, gmail: g.email, receive, reason: null };
 }
 
 /* ---------- Prospects : retrouver qui écrit ---------- */
@@ -91,10 +99,28 @@ async function sendEmail(lead, subject, body) {
   if (!lead.email) throw new Error("Ce prospect n'a pas d'email");
   // On répond dans le même fil que le dernier email échangé
   const last = (await q(`SELECT thread_id, mid_header, subject FROM messages WHERE lead_id=$1 AND channel='email' ORDER BY created_at DESC LIMIT 1`, [lead.id])).rows[0];
-  const lastIn = (await q(`SELECT mid_header FROM messages WHERE lead_id=$1 AND channel='email' AND mid_header IS NOT NULL ORDER BY created_at DESC LIMIT 1`, [lead.id])).rows[0];
+  const lastIn = (await q(`SELECT mid_header FROM messages WHERE lead_id=$1 AND channel='email' AND direction='in' AND mid_header IS NOT NULL ORDER BY created_at DESC LIMIT 1`, [lead.id])).rows[0];
   if (!subject) subject = last && last.subject ? (/^re\s*:/i.test(last.subject) ? last.subject : "Re: " + last.subject) : "Biznify";
   const s = await getSettings();
   const fromName = `${s.prenom || "Yanis"} de Biznify`;
+
+  if (st.via === "resend") {
+    const mid = `<closer.${Date.now()}.${Math.random().toString(36).slice(2, 10)}@${String(config.emailFrom).split("@")[1]}>`;
+    const headers = { "Message-ID": mid };
+    if (lastIn && lastIn.mid_header) { headers["In-Reply-To"] = lastIn.mid_header; headers["References"] = lastIn.mid_header; }
+    const r0 = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.resendApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: `${fromName} <${config.emailFrom}>`, to: [lead.email], subject, text: body, reply_to: config.emailFrom, headers }),
+    });
+    const j = await r0.json().catch(() => ({}));
+    if (!r0.ok) throw new Error(`Resend : ${j.message || j.error || r0.status}`);
+    const r = await q(`INSERT INTO messages (lead_id, channel, direction, address, subject, body, status, external_id, thread_id, mid_header, read_at)
+                       VALUES ($1,'email','out',$2,$3,$4,'sent',$5,$6,$7,now()) RETURNING *`,
+      [lead.id, lead.email, subject, body, "rs_" + j.id, last && last.thread_id ? last.thread_id : null, mid]);
+    return r.rows[0];
+  }
+
   const headers = [
     `From: ${encWord(fromName)} <${st.from}>`,
     `To: ${lead.email}`,
@@ -139,7 +165,8 @@ async function syncEmail() {
   syncing = true;
   try {
     const st = await emailStatus();
-    if (!st.ready) return { added: 0 };
+    if (!st.receive.ready) return { added: 0 };
+    const mine = [st.from, st.gmail].filter(Boolean).map((x) => String(x).toLowerCase());
     const state = await getState();
     const since = state.gmailAfter || Math.floor(Date.now() / 1000) - 3 * 86400;
     const startedAt = Math.floor(Date.now() / 1000);
@@ -152,7 +179,7 @@ async function syncEmail() {
         for (const id of ids.filter((x) => !known.has(x))) {
           const m = await google.gmail(`/messages/${id}`, { query: { format: "full" } });
           const from = emailAddr(header(m.payload, "From"));
-          if (!from || from === String(st.from || "").toLowerCase()) continue;
+          if (!from || mine.includes(from)) continue;
           const lead = (await q(`SELECT id FROM leads WHERE lower(email)=$1 ORDER BY updated_at DESC NULLS LAST LIMIT 1`, [from])).rows[0];
           if (!lead) continue; // seuls les emails de tes prospects entrent dans CLOSER PRO
           const ins = await q(

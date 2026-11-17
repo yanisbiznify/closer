@@ -64,6 +64,7 @@ function renderSetup() {
   const items = [];
   if (!s.email.ready) items.push(`<div class="cv-chan"><span class="cv-ic">${CV_ICON.email}</span><div class="grow"><b>Email</b><p>${esc(s.email.reason)}</p></div>${s.email.connected !== undefined && /Google/.test(s.email.reason) && !/Railway/.test(s.email.reason) ? `<a class="btn primary" href="/api/google/auth?ret=conversations">${s.email.connected ? "Autoriser Gmail" : "Connecter Google"}</a>` : ""}</div>`);
   if (!s.sms.ready) items.push(`<div class="cv-chan"><span class="cv-ic">${CV_ICON.sms}</span><div class="grow"><b>SMS</b><p>${esc(s.sms.reason || "SMS indisponible")}</p></div><button class="btn ghost" id="cv-sms-retry">Revérifier</button></div>`);
+  if (s.email.ready && s.email.receive && !s.email.receive.ready) items.push(`<div class="cv-chan"><span class="cv-ic">${CV_ICON.email}</span><div class="grow"><b>Réponses par email</b><p>${esc(s.email.receive.reason)}. Tes emails partent bien de ${esc(s.email.from)}.</p></div>${/Railway/.test(s.email.receive.reason) ? "" : `<a class="btn primary" href="/api/google/auth?ret=conversations">${s.email.connected ? "Autoriser Gmail" : "Connecter Google"}</a>`}</div>`);
   if (s.email.ready && s.email.error) items.push(`<div class="cv-chan"><span class="cv-ic">${CV_ICON.email}</span><div class="grow"><b>Réception des emails</b><p>${esc(s.email.error)}</p></div></div>`);
   $("#cv-setup").innerHTML = items.length ? `<div class="cv-setup">${items.join("")}</div>` : "";
   cvFit();
@@ -164,7 +165,7 @@ function renderComposer() {
         <button role="tab" data-ch="sms" class="${ch === "sms" ? "on" : ""}" aria-selected="${ch === "sms"}" title="${esc(can.sms || "Envoyer par SMS")}">${CV_ICON.sms}SMS</button>
         <button role="tab" data-ch="email" class="${ch === "email" ? "on" : ""}" aria-selected="${ch === "email"}" title="${esc(can.email || "Envoyer par email")}">${CV_ICON.email}Email</button>
       </div>
-      <span class="small muted cv-to">${ch === "sms" ? (l.phone ? "À " + esc(fmtPhone(l.phone)) : "") : esc(l.email || "")}</span>
+      <span class="small muted cv-to">${ch === "sms" ? (l.phone ? "À " + esc(fmtPhone(l.phone)) : "") : l.email ? `À ${esc(l.email)}${s.email.from ? ` · depuis ${esc(s.email.from)}` : ""}` : ""}</span>
       <select id="cv-tpl" aria-label="Insérer un modèle"><option value="">Modèles</option>${CV_TEMPLATES.map(([n], i) => `<option value="${i}">${esc(n)}</option>`).join("")}</select>
     </div>
     ${can[ch] ? `<div class="cv-warn">${esc(can[ch])}</div>` : ""}
