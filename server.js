@@ -202,8 +202,16 @@ api.post("/bilan", async (req, res) => {
 app.use("/api", api);
 
 /* ---------- Front ---------- */
-app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"], maxAge: "1h", index: "index.html" }));
-app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+// HTML, JS, CSS et service worker : toujours revalidés, pour voir chaque nouvelle version tout de suite
+app.use(express.static(path.join(__dirname, "public"), {
+  extensions: ["html"],
+  index: "index.html",
+  setHeaders(res, file) {
+    if (/\.(html|js|css|webmanifest)$/.test(file)) res.setHeader("Cache-Control", "no-cache");
+    else res.setHeader("Cache-Control", "public, max-age=86400");
+  },
+}));
+app.get("*", (req, res) => { res.setHeader("Cache-Control", "no-cache"); res.sendFile(path.join(__dirname, "public", "index.html")); });
 
 app.use((err, req, res, next) => {
   console.error(err);

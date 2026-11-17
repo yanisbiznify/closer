@@ -1,5 +1,5 @@
 // Service worker minimal : rend l'app installable et garde l'interface disponible hors ligne.
-const CACHE = "closer-v2";
+const CACHE = "closer-v3";
 const SHELL = ["/", "/app.css", "/app.js", "/login", "/brand/wordmark.svg", "/brand/icon-192.png", "/brand/mark.svg"];
 
 self.addEventListener("install", (e) => {
@@ -13,7 +13,7 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
   // Réseau d'abord, cache en secours
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: "no-cache" })
       .then((res) => {
         const copy = res.clone();
         if (res.ok) caches.open(CACHE).then((c) => c.put(e.request, copy));
