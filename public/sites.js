@@ -42,11 +42,30 @@ function stShrink(file, max = 1800) {
   });
 }
 
-/* ---------- Nouveau site ---------- */
-function openNewSite() {
+/* ---------- Nouveau site : 1. choisir un modèle ---------- */
+async function openNewSite() {
+  let tpls = ST.templates;
+  if (!tpls) { try { tpls = ST.templates = (await api("/sites/templates")).templates; } catch (e) { tpls = []; } }
+  const close = bModal({ title: "Choisis un modèle", sub: "Un design pro par métier. L'IA le personnalise ensuite entièrement pour ton client : textes, couleurs, photos, sections.", cancel: "Annuler", width: 1040, body: `
+    <div class="tp-grid">${tpls.map((t) => `
+      <article class="tp-card">
+        <button class="tp-pick" data-tpl="${esc(t.key)}" aria-label="Choisir le modèle ${esc(t.name)}">
+          <div class="tp-img" style="--ac:${esc(t.accent)}">${t.image ? `<img src="${esc(t.image)}" alt="" loading="lazy">` : ""}<span class="tp-mode ${t.mode}">${t.mode === "dark" ? "Sombre" : "Clair"}</span></div>
+          <div class="tp-meta"><b>${esc(t.name)}</b><span>${esc(t.sector)}</span></div>
+        </button>
+        <a class="tp-prev" href="/api/sites/templates/${esc(t.key)}/preview" target="_blank" rel="noopener">Aperçu</a>
+      </article>`).join("")}
+      <article class="tp-card tp-free"><button class="tp-pick" data-tpl="" aria-label="Création libre sans modèle"><div class="tp-img tp-blank"><span>✦</span></div><div class="tp-meta"><b>Création libre</b><span>L'IA invente un design unique, sans modèle</span></div></button></article>
+    </div>` });
+  $$(".tp-pick").forEach((b) => (b.onclick = () => { close(); openSiteBrief(b.dataset.tpl || null); }));
+}
+
+/* ---------- Nouveau site : 2. décrire l'entreprise ---------- */
+function openSiteBrief(template) {
+  const tpl = template && (ST.templates || []).find((t) => t.key === template);
   const f = (id, label, ph = "", type = "text", req = false) => `<div class="field"><label for="${id}">${label}${req ? " *" : ""}</label><input id="${id}" type="${type}" placeholder="${esc(ph)}" ${req ? "required" : ""}></div>`;
   const t = (id, label, ph = "") => `<div class="field"><label for="${id}">${label}</label><textarea id="${id}" rows="3" placeholder="${esc(ph)}"></textarea></div>`;
-  bModal({ title: "Nouveau site", sub: "Plus tu donnes de détails, plus le site sera juste. Seuls les deux premiers champs sont obligatoires.", go: "Créer le site avec l'IA", width: 680, body: `
+  bModal({ title: tpl ? `Nouveau site · modèle ${tpl.name}` : "Nouveau site · création libre", sub: "Plus tu donnes de détails, plus le site sera juste. Seuls les deux premiers champs sont obligatoires.", go: "Créer le site avec l'IA", width: 680, body: `
     <div class="st-form">
       <div class="g2">${f("sn-company", "Nom de l'entreprise", "Plomberie Martin", "text", true)}${f("sn-activity", "Activité", "Plombier chauffagiste", "text", true)}</div>
       <div class="g2">${f("sn-city", "Ville et zone d'intervention", "Tours et 30 km autour")}${f("sn-phone", "Téléphone", "06 12 34 56 78", "tel")}</div>
@@ -73,7 +92,7 @@ function openNewSite() {
         const files = [];
         const logo = $("#sn-logo").files[0]; if (logo) files.push({ role: "logo", name: logo.name, data: await stShrink(logo, 800) });
         for (const p of [...$("#sn-photos").files].slice(0, 10)) files.push({ role: "photo", name: p.name, data: await stShrink(p) });
-        const r = await api("/sites", { method: "POST", body: JSON.stringify({ brief, notify_email: v("#sn-notify"), to_pipeline: $("#sn-pipe").checked, defer: true }) });
+        const r = await api("/sites", { method: "POST", body: JSON.stringify({ brief, template, notify_email: v("#sn-notify"), to_pipeline: $("#sn-pipe").checked, defer: true }) });
         for (const fl of files) await api(`/sites/${r.site.id}/assets`, { method: "POST", body: JSON.stringify(fl) });
         await api(`/sites/${r.site.id}/regenerate`, { method: "POST", body: "{}" });
         toast("L'IA crée le site, ça prend environ 1 à 2 minutes");

@@ -4,6 +4,9 @@ const crypto = require("crypto");
 const config = require("./config");
 const { q } = require("./db");
 const tw = require("./twilio");
+const studioRender = require("./studio/render");
+const studioAi = require("./studio/ai");
+const studioTemplates = require("./studio/templates");
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const str = (v, n = 500) => String(v ?? "").slice(0, n);
@@ -59,6 +62,8 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS site_versions_site ON site_versions(site_id, id DESC);
     CREATE INDEX IF NOT EXISTS site_submissions_site ON site_submissions(site_id, id DESC);
   `);
+  // mode « modèle » : contenu structuré (JSON) rendu par le moteur Biznify
+  await q(`ALTER TABLE sites ADD COLUMN IF NOT EXISTS template TEXT; ALTER TABLE sites ADD COLUMN IF NOT EXISTS data JSONB; ALTER TABLE site_versions ADD COLUMN IF NOT EXISTS data JSONB;`);
   // un travail interrompu par un redémarrage ne doit pas rester bloqué
   await q(`UPDATE sites SET job=NULL, job_error='Interrompu par un redémarrage, relance la demande' WHERE job IS NOT NULL`);
 }
@@ -291,18 +296,29 @@ function runJob(siteId, label, fn) {
     finally { jobs.delete(siteId); }
   });
 }
-async function saveVersion(siteId, html, note) {
-  await q(`UPDATE sites SET html=$2::text, status=CASE WHEN status='brouillon' THEN 'pret' ELSE status END, updated_at=now() WHERE id=$1`, [siteId, html]);
-  await q(`INSERT INTO site_versions (site_id, html, note) VALUES ($1,$2,$3)`, [siteId, html, note]);
+async function saveVersion(siteId, html, note, data = null) {
+  await q(`UPDATE sites SET html=$2::text, data=COALESCE($3::jsonb, data), status=CASE WHEN status='brouillon' THEN 'pret' ELSE status END, updated_at=now() WHERE id=$1`, [siteId, html, data ? JSON.stringify(data) : null]);
+  await q(`INSERT INTO site_versions (site_id, html, note, data) VALUES ($1,$2,$3,$4)`, [siteId, html, note, data ? JSON.stringify(data) : null]);
   await q(`DELETE FROM site_versions WHERE site_id=$1 AND id NOT IN (SELECT id FROM site_versions WHERE site_id=$1 ORDER BY id DESC LIMIT 30)`, [siteId]);
 }
 async function generate(site) {
   const assets = (await q(`SELECT id, name, role FROM site_assets WHERE site_id=$1 ORDER BY id`, [site.id])).rows;
+  if (site.template && studioTemplates.get(site.template)) {
+    const data = await studioAi.generate(site.template, briefText(site.brief, assets), assets);
+    const tpl = studioTemplates.list().find((t) => t.key === site.template);
+    await saveVersion(site.id, studioRender.render(data), `Site créé à partir du modèle « ${tpl.name} »`, data);
+    return;
+  }
   const text = await claude(DESIGN_RULES, [{ role: "user", content: `Crée le site vitrine complet de cette entreprise.\n\n${briefText(site.brief, assets)}\n\nAnnée en cours : ${new Date().getFullYear()}.` }]);
   await saveVersion(site.id, extractHtml(text), "Site généré par l'IA");
 }
 async function edit(site, instruction) {
   const assets = (await q(`SELECT id, name, role FROM site_assets WHERE site_id=$1 ORDER BY id`, [site.id])).rows;
+  if (site.data) {
+    const data = await studioAi.edit(site.data, instruction, briefText(site.brief, assets), assets);
+    await saveVersion(site.id, studioRender.render(data), instruction.slice(0, 300), data);
+    return;
+  }
   const text = await claude(DESIGN_RULES, [{ role: "user", content:
     `Voici le site actuel :\n\n${site.html}\n\nInformations de l'entreprise :\n${briefText(site.brief, assets)}\n\nApplique cette demande de modification, en gardant tout le reste identique sauf si la demande l'exige :\n${instruction}\n\nRenvoie le document HTML complet mis à jour.` }]);
   await saveVersion(site.id, extractHtml(text), instruction.slice(0, 300));
@@ -312,7 +328,7 @@ async function edit(site, instruction) {
 const api = express.Router();
 const serialize = async (s, full) => {
   const out = {
-    id: s.id, name: s.name, slug: s.slug, status: s.status, job: s.job, job_error: s.job_error, brief: s.brief, notify_email: s.notify_email, to_pipeline: s.to_pipeline,
+    id: s.id, name: s.name, slug: s.slug, status: s.status, template: s.template || null, job: s.job, job_error: s.job_error, brief: s.brief, notify_email: s.notify_email, to_pipeline: s.to_pipeline,
     cf_project: s.cf_project, url: s.cf_subdomain ? `https://${s.cf_subdomain}` : null, custom_domain: s.custom_domain, published_at: s.published_at,
     changed: !!(s.published_at && s.html && crypto.createHash("sha1").update(s.html).digest("hex") !== s.published_html_hash),
     has_html: !!s.html, updated_at: s.updated_at, created_at: s.created_at,
@@ -330,6 +346,16 @@ function cleanBrief(b = {}) {
   return Object.fromEntries(k.map((x) => [x, str(b[x], x === "notes" || x === "services" || x === "proofs" ? 3000 : 300).trim()]));
 }
 
+api.get("/sites/templates", wrap(async (req, res) => {
+  res.json({ templates: studioTemplates.list().map((t) => ({ ...t, image: studioRender.img(t.image, 900) })) });
+}));
+api.get("/sites/templates/:key/preview", wrap(async (req, res) => {
+  const d = studioTemplates.get(req.params.key);
+  if (!d) return res.status(404).send("Modèle introuvable");
+  res.setHeader("Cache-Control", "private, max-age=600");
+  res.setHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox");
+  res.send(renderSite({ html: studioRender.render(d), notify_email: "", public_key: "apercu" }, { assets: [], assetUrl: () => "" }));
+}));
 api.get("/sites", wrap(async (req, res) => {
   const r = await q(`SELECT * FROM sites ORDER BY updated_at DESC`);
   const counts = Object.fromEntries((await q(`SELECT site_id, count(*)::int AS n FROM site_submissions GROUP BY site_id`)).rows.map((x) => [x.site_id, x.n]));
@@ -346,8 +372,9 @@ api.post("/sites", wrap(async (req, res) => {
   let slug = slugify(`${brief.company} ${brief.city || ""}`);
   if ((await q(`SELECT 1 FROM sites WHERE slug=$1`, [slug])).rows.length) slug = `${slug}-${crypto.randomBytes(2).toString("hex")}`;
   const notify = str(req.body.notify_email, 200).trim() || brief.email || null;
-  const s = (await q(`INSERT INTO sites (name, slug, brief, notify_email, to_pipeline, lead_id, public_key) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-    [brief.company, slug, brief, notify, !!req.body.to_pipeline, Number(req.body.lead_id) || null, crypto.randomBytes(12).toString("base64url")])).rows[0];
+  const template = studioTemplates.get(req.body.template) ? req.body.template : null;
+  const s = (await q(`INSERT INTO sites (name, slug, brief, notify_email, to_pipeline, lead_id, public_key, template) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [brief.company, slug, brief, notify, !!req.body.to_pipeline, Number(req.body.lead_id) || null, crypto.randomBytes(12).toString("base64url"), template])).rows[0];
   for (const f of (req.body.files || []).slice(0, 12)) await addAsset(s.id, f);
   if (!req.body.defer) runJob(s.id, "Création du site", () => generate(s));
   res.json({ site: await serialize(await getSite(s.id)) });
@@ -405,9 +432,9 @@ api.post("/sites/:id/regenerate", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 api.post("/sites/:id/versions/:vid/restore", wrap(async (req, res) => {
-  const v = (await q(`SELECT html, created_at FROM site_versions WHERE id=$1 AND site_id=$2`, [req.params.vid, req.params.id])).rows[0];
+  const v = (await q(`SELECT html, data, created_at FROM site_versions WHERE id=$1 AND site_id=$2`, [req.params.vid, req.params.id])).rows[0];
   if (!v) return res.status(404).json({ error: "Version introuvable" });
-  await saveVersion(Number(req.params.id), v.html, `Retour à la version du ${new Date(v.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`);
+  await saveVersion(Number(req.params.id), v.html, `Retour à la version du ${new Date(v.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`, v.data);
   res.json({ ok: true });
 }));
 api.get("/sites/:id/preview", wrap(async (req, res) => {

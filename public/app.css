@@ -841,3 +841,23 @@ input,select,textarea{color-scheme:light}
 .st-rec td{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;word-break:break-all}
 @media (max-width:900px){.st-work{grid-template-columns:1fr;height:auto}.st-stage{height:70vh}.st-chat{max-height:220px}.st-form .g2{grid-template-columns:1fr}}
 .st-busy[hidden]{display:none}
+
+/* ---------- AI Studio : galerie de modèles ---------- */
+.tp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.tp-card{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);transition:border-color .2s,box-shadow .2s}
+.tp-card:hover{border-color:var(--or-line);box-shadow:0 8px 24px rgba(11,18,32,.08)}
+.tp-pick{display:block;width:100%;padding:0;border:0;background:none;text-align:left;cursor:pointer;color:inherit;font:inherit}
+.tp-pick:focus-visible{outline:2px solid var(--or);outline-offset:-2px}
+.tp-img{position:relative;aspect-ratio:16/10;background:linear-gradient(135deg,var(--ac),color-mix(in srgb,var(--ac) 40%,#0B1220));overflow:hidden}
+.tp-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
+.tp-card:hover .tp-img img{transform:scale(1.04)}
+.tp-img::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--ac)}
+.tp-mode{position:absolute;top:10px;left:10px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.92);color:#0B1220}
+.tp-mode.dark{background:rgba(11,18,32,.85);color:#fff}
+.tp-meta{padding:12px 14px 14px;display:flex;flex-direction:column;gap:2px}
+.tp-meta b{font-size:14.5px}.tp-meta span{font-size:12.5px;color:var(--mut)}
+.tp-prev{position:absolute;top:10px;right:10px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.92);color:#0B1220;text-decoration:none}
+.tp-prev:hover{background:#fff}
+.tp-blank{background:var(--raised);display:grid;place-items:center;font-size:34px;color:var(--or)}.tp-blank::after{display:none}
+@media (max-width:900px){.tp-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.tp-grid{grid-template-columns:1fr}}
