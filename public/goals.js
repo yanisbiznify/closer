@@ -1,4 +1,4 @@
-/* Biznify — Objectifs : cap à 3 mois, mois, semaine */
+/* Biznify — Objectifs business : cap à 3 mois, mois, semaine (le perso reste en dehors de l'app) */
 const OB = { data: null };
 const OB_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris"; } catch { return "Europe/Paris"; } })();
 
@@ -9,7 +9,7 @@ const OB_H = {
 };
 const OB_M = {
   check: { label: "Je coche quand c'est fait", auto: false },
-  nombre: { label: "Un chiffre que je mets à jour (kg, reels, posts…)", auto: false },
+  nombre: { label: "Un chiffre que je mets à jour (abonnés, reels, posts…)", auto: false },
   ca: { label: "CA encaissé sur la période", auto: true, unit: "€" },
   ca_mois: { label: "CA encaissé par mois (rythme mensuel)", auto: true, unit: "€" },
   appels: { label: "Appels passés", auto: true, unit: "appels" },
@@ -53,7 +53,6 @@ async function loadGoals() {
 
 function obRow(g) {
   const m = OB_M[g.metric] || OB_M.check;
-  const dom = `<span class="badge ${g.domain === "perso" ? "" : "or"}">${g.domain === "perso" ? "Perso" : "Pro"}</span>`;
   const future = g.start_date > OB.data.today;
   let meta = "";
   if (g.metric === "check") {
@@ -75,7 +74,7 @@ function obRow(g) {
   return `<li class="ob-row ${g.reached ? "done" : ""}" data-id="${g.id}">
     ${icon}
     <div class="ob-main">
-      <div class="ob-top"><span class="ob-title">${esc(g.title)}</span>${dom}${m.auto ? `<span class="badge" title="Calculé tout seul à partir de tes appels, de ton agenda et de tes paiements">Auto</span>` : ""}${future ? `<span class="badge">À partir du ${obDay(g.start_date)}</span>` : ""}</div>
+      <div class="ob-top"><span class="ob-title">${esc(g.title)}</span>${m.auto ? `<span class="badge" title="Calculé tout seul à partir de tes appels, de ton agenda et de tes paiements">Auto</span>` : ""}${future ? `<span class="badge">À partir du ${obDay(g.start_date)}</span>` : ""}</div>
       ${g.metric !== "check" ? `<div class="ob-bar ${state}"><span style="width:${pct}%"></span></div>` : ""}
       <div class="ob-meta">${meta}${g.notes ? `${meta ? " · " : ""}<span class="muted">${esc(g.notes.split("\n")[0].slice(0, 120))}</span>` : ""}</div>
     </div>
@@ -88,8 +87,9 @@ function obRow(g) {
 
 function renderGoals() {
   const d = OB.data, today = d.today;
-  const active = d.goals.filter((g) => g.end_date >= today);
-  const past = d.goals.filter((g) => g.end_date < today);
+  const pro = d.goals.filter((g) => g.domain !== "perso");
+  const active = pro.filter((g) => g.end_date >= today);
+  const past = pro.filter((g) => g.end_date < today);
 
   // Bandeau : la semaine en un coup d'œil
   const wk = active.filter((g) => g.horizon === "semaine" && g.start_date <= today);
@@ -140,17 +140,14 @@ function goalForm(g = null, horizon = "semaine") {
     go: g ? "Enregistrer" : "Ajouter", width: 560,
     body: `
       <div class="field"><label for="ob-t">Objectif</label><input id="ob-t" maxlength="200" value="${esc(x.title)}" placeholder="Ex. : 200 appels de prospection"></div>
-      <div class="ob-2">
-        <div class="field"><label for="ob-h">Horizon</label><select id="ob-h">${Object.entries(OB_H).map(([k, v]) => `<option value="${k}" ${x.horizon === k ? "selected" : ""}>${v.short}</option>`).join("")}</select></div>
-        <div class="field"><label for="ob-d">Domaine</label><select id="ob-d"><option value="pro" ${x.domain !== "perso" ? "selected" : ""}>Pro</option><option value="perso" ${x.domain === "perso" ? "selected" : ""}>Perso</option></select></div>
-      </div>
+      <div class="field"><label for="ob-h">Horizon</label><select id="ob-h">${Object.entries(OB_H).map(([k, v]) => `<option value="${k}" ${x.horizon === k ? "selected" : ""}>${v.short}</option>`).join("")}</select></div>
       <div class="field"><label for="ob-m">Comment le mesurer</label><select id="ob-m">${Object.entries(OB_M).map(([k, v]) => `<option value="${k}" ${x.metric === k ? "selected" : ""}>${v.auto ? "Auto · " : ""}${v.label}</option>`).join("")}</select></div>
       <div class="ob-2" id="ob-num">
         <div class="field"><label for="ob-c">Cible</label><input id="ob-c" inputmode="decimal" value="${x.target != null ? x.target : ""}" placeholder="Ex. : 200"></div>
-        <div class="field" id="ob-u-f"><label for="ob-u">Unité</label><input id="ob-u" maxlength="30" value="${esc(x.unit || "")}" placeholder="kg, reels, posts…"></div>
+        <div class="field" id="ob-u-f"><label for="ob-u">Unité</label><input id="ob-u" maxlength="30" value="${esc(x.unit || "")}" placeholder="abonnés, reels, posts…"></div>
       </div>
       <div class="ob-2" id="ob-nb">
-        <div class="field"><label for="ob-dir">Sens</label><select id="ob-dir"><option value="up" ${x.direction !== "down" ? "selected" : ""}>Monter jusqu'à la cible</option><option value="down" ${x.direction === "down" ? "selected" : ""}>Descendre jusqu'à la cible (poids…)</option></select></div>
+        <div class="field"><label for="ob-dir">Sens</label><select id="ob-dir"><option value="up" ${x.direction !== "down" ? "selected" : ""}>Monter jusqu'à la cible</option><option value="down" ${x.direction === "down" ? "selected" : ""}>Descendre jusqu'à la cible (délai de paiement, coût par client…)</option></select></div>
         <div class="field"><label for="ob-v">Où tu en es aujourd'hui</label><input id="ob-v" inputmode="decimal" value="${x.current != null ? x.current : 0}"></div>
       </div>
       <div class="ob-2">
@@ -161,7 +158,7 @@ function goalForm(g = null, horizon = "semaine") {
       ${g ? `<div class="ob-danger"><button class="btn danger ob-sm" id="ob-del" type="button">Supprimer</button>${g.past && !g.reached ? `<button class="btn ghost ob-sm" id="ob-rep" type="button">Reporter sur la période suivante</button>` : ""}</div>` : ""}`,
     onGo: async () => {
       const body = {
-        tz: OB_TZ, title: $("#ob-t").value, horizon: $("#ob-h").value, domain: $("#ob-d").value, metric: $("#ob-m").value,
+        tz: OB_TZ, title: $("#ob-t").value, horizon: $("#ob-h").value, domain: "pro", metric: $("#ob-m").value,
         start_date: $("#ob-s").value, end_date: $("#ob-e").value, notes: $("#ob-n").value,
       };
       if (body.metric !== "check") body.target = parseNum($("#ob-c").value);
