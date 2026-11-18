@@ -133,11 +133,11 @@ async function render(text, lead, run) {
     "prénom": first, nom: lead.last_name || "", entreprise: lead.company || "", "téléphone": lead.phone || "", email: lead.email || "",
     "ton_prénom": s.prenom || "Yanis",
     date_rdv: appt ? fmtDate(appt.start_at) : "", heure_rdv: appt ? fmtTime(appt.start_at) : "", lien_meet: appt && appt.meet_url ? appt.meet_url : "",
-    lien_gestion_rdv: appt && appt.manage_token ? `${tw.publicUrl() || ""}/r/m/${appt.manage_token}` : "",
+    lien_gestion_rdv: appt && appt.manage_token ? tw.manageLink(appt.manage_token) : "",
     "numéro_facture": inv ? inv.number : "", montant_facture: inv ? euro(inv.total_cents) : "",
     lien_facture: inv ? `${tw.payUrl() || ""}/facture/${inv.token}` : "", "échéance_facture": inv && inv.due_date ? fmtDate(inv.due_date) : "",
   };
-  return text.replace(/\{lien_reservation:([a-z0-9-]+)\}/gi, (m, slug) => `${tw.publicUrl() || ""}/r/${slug.toLowerCase()}`)
+  return text.replace(/\{lien_reservation:([a-z0-9-]+)\}/gi, (m, slug) => tw.bookingLink(slug.toLowerCase()))
     .replace(/\{([a-zàâçéèêëîïôûùüÿ_]+)\}/gi, (m, k) => (k in vals ? vals[k] : m))
     .replace(/Bonjour ,/g, "Bonjour,").replace(/ {2,}/g, " ");
 }

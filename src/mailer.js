@@ -159,7 +159,7 @@ function fire(fn) { setImmediate(() => Promise.resolve().then(fn).catch((e) => c
 async function bookingCreated(a, lead, cal) {
   const n = await getNotif();
   const calName = cal ? cal.name : a.title;
-  const manage = a.manage_token ? `${base()}/r/m/${a.manage_token}` : null;
+  const manage = a.manage_token ? tw.manageLink(a.manage_token) : null;
   if (n.client.booking_confirm && a.attendee_email) {
     await sendTemplate(a.attendee_email, `Confirmé : ${calName}, ${fmtWhen(a.start_at).toLowerCase()}`, {
       preheader: `Votre rendez-vous ${fmtWhen(a.start_at)} (heure de Paris)`,
@@ -199,7 +199,7 @@ async function bookingChanged(a, lead, cal, kind, newStart) {
       await sendTemplate(a.attendee_email, "Votre rendez-vous est annulé", {
         title: "Rendez-vous annulé",
         intro: `Bonjour ${firstName(lead)},\n\nVotre rendez-vous du ${fmtWhen(a.start_at).toLowerCase()} est bien annulé.`,
-        cta: cal && cal.active ? { label: "Choisir un nouveau créneau", url: `${base()}/r/${cal.slug}` } : null,
+        cta: cal && cal.active ? { label: "Choisir un nouveau créneau", url: tw.bookingLink(cal.slug) } : null,
         note: "Vous pouvez reprendre rendez-vous quand vous voulez.",
       });
     }

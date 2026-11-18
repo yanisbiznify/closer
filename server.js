@@ -21,6 +21,14 @@ const ghlApi = require("./src/ghl");
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
+// booking.biznify.pro : pages de réservation seulement, avec des liens courts (booking.biznify.pro/<calendrier>)
+const BOOKING_HOST = (() => { try { return config.bookingUrl ? new URL(config.bookingUrl).hostname : null; } catch { return null; } })();
+app.use((req, res, next) => {
+  if (!BOOKING_HOST || req.hostname !== BOOKING_HOST) return next();
+  if (/^\/(r\/|brand\/|email\/|robots\.txt)/.test(req.path)) return next();
+  if (/^\/(m\/[A-Za-z0-9_-]+|[a-z0-9-]+)\/?$/.test(req.path)) { req.url = "/r" + req.url; return next(); }
+  res.redirect(302, "https://biznify.pro");
+});
 // pay.biznify.pro ne sert que les pages clients (factures, liens de paiement), jamais l'app
 const PAY_HOST = (() => { try { return config.payUrl ? new URL(config.payUrl).hostname : null; } catch { return null; } })();
 app.use((req, res, next) => {

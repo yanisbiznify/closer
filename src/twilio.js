@@ -12,6 +12,19 @@ function payUrl() {
   if (config.payUrl) return config.payUrl.replace(/\/$/, "");
   return publicUrl();
 }
+// Liens de réservation : booking.biznify.pro/<calendrier> si défini, sinon <app>/r/<calendrier>
+function bookingLink(slug) {
+  if (config.bookingUrl) return `${config.bookingUrl.replace(/\/$/, "")}/${slug}`;
+  return `${publicUrl() || ""}/r/${slug}`;
+}
+function manageLink(token) {
+  if (config.bookingUrl) return `${config.bookingUrl.replace(/\/$/, "")}/m/${token}`;
+  return `${publicUrl() || ""}/r/m/${token}`;
+}
+function bookingPrefix() {
+  if (config.bookingUrl) return config.bookingUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") + "/";
+  return "/r/";
+}
 function publicUrl() {
   if (config.publicUrl) return config.publicUrl.replace(/\/$/, "");
   if (process.env.RAILWAY_PUBLIC_DOMAIN) return "https://" + process.env.RAILWAY_PUBLIC_DOMAIN;
@@ -120,4 +133,4 @@ async function downloadRecording(url) {
   return { buffer: Buffer.from(await res.arrayBuffer()), type: "audio/mpeg" };
 }
 
-module.exports = { client, enabled, missing, ensureSetup, token, normalizePhone, validRequest, voiceTwiml, rejectTwiml, downloadRecording, publicUrl, payUrl };
+module.exports = { client, enabled, missing, ensureSetup, token, normalizePhone, validRequest, voiceTwiml, rejectTwiml, downloadRecording, publicUrl, payUrl, bookingLink, manageLink, bookingPrefix };

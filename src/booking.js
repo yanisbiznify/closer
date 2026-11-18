@@ -133,7 +133,7 @@ async function findOrCreateLead({ first_name, last_name, company, email, phone }
 }
 
 const base = () => tw.publicUrl() || "";
-const manageUrl = (a) => `${base()}/r/m/${a.manage_token}`;
+const manageUrl = (a) => tw.manageLink(a.manage_token);
 const fmtWhen = (d) => { const t = new Date(d).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 async function book(cal, b, ip) {
@@ -156,7 +156,7 @@ async function book(cal, b, ip) {
   const who = [first_name, last_name].filter(Boolean).join(" ");
   const title = (cal.event_title || `${cal.name} · {nom}`).replace(/\{\{contact\.name\}\}|\{nom\}/g, who + (company ? ` (${company})` : "")).slice(0, 200);
   const note = str(b.notes, 1000).trim();
-  const desc = [cal.description, "", `Téléphone : ${phone}`, `Email : ${email}`, company ? `Entreprise : ${company}` : null, note ? `\nMessage : ${note}` : null, "", `Besoin de déplacer ou d'annuler ? ${base()}/r/m/${token}`].filter((x) => x !== null).join("\n");
+  const desc = [cal.description, "", `Téléphone : ${phone}`, `Email : ${email}`, company ? `Entreprise : ${company}` : null, note ? `\nMessage : ${note}` : null, "", `Besoin de déplacer ou d'annuler ? ${tw.manageLink(token)}`].filter((x) => x !== null).join("\n");
   let ev = null;
   try { if ((await google.status()).connected) ev = await google.createEvent({ title, start: start.toISOString(), end: end.toISOString(), email, description: desc, meet: cal.meet, notify: true, leadId: lead.id }); }
   catch (e) { console.warn("Réservation → Google :", e.message); }
@@ -179,12 +179,12 @@ async function stopRunsFor(appointmentId) {
 
 /* ---------- API (connecté) ---------- */
 const api = express.Router();
-const withUrl = (c) => ({ ...c, url: `${base()}/r/${c.slug}` });
+const withUrl = (c) => ({ ...c, url: tw.bookingLink(c.slug) });
 
 api.get("/booking/calendars", wrap(async (req, res) => {
   const r = await q(`SELECT c.*, (SELECT count(*) FROM appointments a WHERE a.calendar_id=c.id AND a.status <> 'annule' AND a.start_at > now())::int AS upcoming,
                        (SELECT count(*) FROM appointments a WHERE a.calendar_id=c.id)::int AS total FROM booking_calendars c ORDER BY c.created_at`);
-  res.json({ calendars: r.rows.map(withUrl), defaultHours: DEFAULT_HOURS });
+  res.json({ calendars: r.rows.map(withUrl), defaultHours: DEFAULT_HOURS, prefix: tw.bookingPrefix() });
 }));
 api.post("/booking/calendars", wrap(async (req, res) => {
   const c = cleanCalendar(req.body);

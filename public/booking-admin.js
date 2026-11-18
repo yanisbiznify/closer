@@ -4,7 +4,7 @@ const BC_DAYS = [["1", "Lundi"], ["2", "Mardi"], ["3", "Mercredi"], ["4", "Jeudi
 const bcDur = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} h` : `${m} min`);
 
 async function loadBookingCalendars() {
-  try { const r = await api("/booking/calendars"); BC.list = r.calendars; BC.defaultHours = r.defaultHours; } catch (e) { $("#bc-list").innerHTML = `<div class="panel-b muted">${esc(e.message)}</div>`; return; }
+  try { const r = await api("/booking/calendars"); BC.list = r.calendars; BC.defaultHours = r.defaultHours; BC.prefix = r.prefix || "/r/"; } catch (e) { $("#bc-list").innerHTML = `<div class="panel-b muted">${esc(e.message)}</div>`; return; }
   renderBookingCalendars();
 }
 
@@ -43,7 +43,7 @@ function openCalendarEditor(c) {
     go: isNew ? "Créer le calendrier" : "Enregistrer",
     body: `<div class="bi-2">
         <div class="field"><label for="bce-name">Nom</label><input id="bce-name" value="${esc(c.name)}" placeholder="Ex. Appel découverte"></div>
-        <div class="field"><label for="bce-slug">Lien</label><div class="bce-slug"><span>/r/</span><input id="bce-slug" value="${esc(c.slug)}" placeholder="appel-decouverte"></div></div>
+        <div class="field"><label for="bce-slug">Lien</label><div class="bce-slug"><span>${esc(BC.prefix || "/r/")}</span><input id="bce-slug" value="${esc(c.slug)}" placeholder="appel-decouverte"></div></div>
       </div>
       <div class="field"><label for="bce-desc">Description (affichée au prospect)</label><textarea id="bce-desc" style="min-height:64px">${esc(c.description || "")}</textarea></div>
       <div class="bce-grid">
