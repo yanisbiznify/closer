@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=21">
+<link rel="stylesheet" href="/app.css?v=22">
 </head>
 <body>
 <div class="shell">
@@ -61,9 +61,11 @@
       <!-- TABLEAU DE BORD -->
       <section class="view on" id="v-dashboard">
         <div class="head">
-          <div><h1 id="hello">Tableau de bord</h1><p id="hello-sub">Ta progression sur la ligne droite, appel après appel.</p></div>
+          <div><h1 id="hello">Tableau de bord</h1><p id="hello-sub">Tout ton business en un coup d’œil : argent, rendez-vous, prospects et appels.</p></div>
           <div class="actions"><button class="btn ghost" data-go="import">Importer un appel</button><button class="btn primary" data-go="calls">Voir mes appels</button></div>
         </div>
+        <div id="biz"></div>
+        <h2 class="dash-sec">Ta prospection</h2>
         <div id="dash-callout"></div>
         <div class="kpis">
           <div class="kpi"><div class="l">Appels analysés</div><div class="v" id="k-n">–</div><div class="d" id="k-n-d">&nbsp;</div></div>
@@ -450,7 +452,7 @@
 <script src="/vendor/xlsx/xlsx.full.min.js" defer></script>
 <script src="/phone.js?v=7"></script>
 <script src="/dialer.js?v=16"></script>
-<script src="/crm.js?v=10"></script>
+<script src="/crm.js?v=11"></script>
 <script src="/calendar.js?v=9"></script>
 <script src="/billing.js?v=5"></script>
 <script src="/revenue.js?v=1"></script>
@@ -460,5 +462,6 @@
 <script src="/booking-admin.js?v=1"></script>
 <script src="/notifications.js?v=1"></script>
 <script src="/sites.js?v=3"></script>
+<script src="/activity.js?v=1"></script>
 </body>
 </html>

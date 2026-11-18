@@ -8,6 +8,7 @@ const stripe = require("./stripe");
 const tw = require("./twilio");
 const mailer = require("./mailer");
 const invoicePdf = require("./invoice-pdf");
+const activity = require("./activity");
 
 const DEFAULT_BILLING = {
   company: "Biznify Technologies Ltd",
@@ -95,9 +96,16 @@ async function markPaid(id, via, sessionId) {
     [id, via, sessionId || null]
   );
   const inv = r.rows[0];
-  if (inv) mailer.fire(() => mailer.invoicePaid(inv));
+  if (inv) {
+    mailer.fire(() => mailer.invoicePaid(inv));
+    const who = (inv.client && (inv.client.company || inv.client.name)) || "Client";
+    await activity.log("payment", { leadId: inv.lead_id, title: `${who} a payé la facture ${inv.number}`, detail: inv.title, amountCents: inv.total_cents, ref: `invoice:${inv.id}` });
+  }
   if (inv && inv.lead_id) {
-    await q(`UPDATE leads SET stage='gagne', stage_at=now() WHERE id=$1 AND stage IS DISTINCT FROM 'gagne'`, [inv.lead_id]).catch(() => {});
+    // le prospect devient client, et sa valeur reflète ce qu'il a réellement payé
+    await q(`UPDATE leads SET stage='gagne', stage_at=CASE WHEN stage IS DISTINCT FROM 'gagne' THEN now() ELSE stage_at END,
+             value=CASE WHEN COALESCE(value,0)=0 THEN $2 ELSE value END, updated_at=now() WHERE id=$1`, [inv.lead_id, Math.round(inv.total_cents / 100)]).catch(() => {});
+    await activity.noteLead(inv.lead_id, `Paiement reçu : ${activity.euro(inv.total_cents)} (facture ${inv.number}${via ? ", " + via : ""})`);
   }
   return inv;
 }
@@ -115,7 +123,22 @@ async function handleSession(s) {
     const l = meta.link_id ? (await q(`SELECT id FROM payment_links WHERE id=$1`, [Number(meta.link_id)])).rows[0] : (await q(`SELECT id FROM payment_links WHERE stripe_id=$1`, [s.payment_link])).rows[0];
     if (!l) return;
     const ins = await q(`INSERT INTO link_payments (link_id, session_id, amount_cents) VALUES ($1,$2,$3) ON CONFLICT (session_id) DO NOTHING RETURNING id`, [l.id, s.id, s.amount_total || 0]);
-    if (ins.rows[0]) await q(`UPDATE payment_links SET paid_count=paid_count+1, paid_cents=paid_cents+$2 WHERE id=$1`, [l.id, s.amount_total || 0]);
+    if (ins.rows[0]) {
+      await q(`UPDATE payment_links SET paid_count=paid_count+1, paid_cents=paid_cents+$2 WHERE id=$1`, [l.id, s.amount_total || 0]);
+      const link = (await q(`SELECT * FROM payment_links WHERE id=$1`, [l.id])).rows[0];
+      // prospect : celui du lien, sinon retrouvé grâce à l'email saisi au paiement
+      const email = s.customer_details && s.customer_details.email;
+      let leadId = link.lead_id;
+      if (!leadId && email) { const m = (await q(`SELECT id FROM leads WHERE lower(email)=lower($1) ORDER BY updated_at DESC NULLS LAST LIMIT 1`, [email])).rows[0]; if (m) leadId = m.id; }
+      const lead = leadId ? (await q(`SELECT * FROM leads WHERE id=$1`, [leadId])).rows[0] : null;
+      const who = lead ? (lead.company || [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name) : (s.customer_details && (s.customer_details.name || email)) || "Un client";
+      await activity.log("payment", { leadId, title: `${who} a payé « ${link.label} »`, detail: "Lien de paiement", amountCents: s.amount_total || 0, ref: `session:${s.id}` });
+      if (leadId) {
+        await q(`UPDATE leads SET stage='gagne', stage_at=CASE WHEN stage IS DISTINCT FROM 'gagne' THEN now() ELSE stage_at END, value=CASE WHEN COALESCE(value,0)=0 THEN $2 ELSE value END, updated_at=now() WHERE id=$1`, [leadId, Math.round((s.amount_total || 0) / 100)]).catch(() => {});
+        await activity.noteLead(leadId, `Paiement reçu : ${activity.euro(s.amount_total || 0)} (lien « ${link.label} »)`);
+      }
+      mailer.fire(() => mailer.linkPaid && mailer.linkPaid(link, s, who));
+    }
   }
 }
 
@@ -192,6 +215,7 @@ api.post("/invoices", async (req, res) => {
         [number, crypto.randomBytes(18).toString("base64url"), d.leadId, d.title, d.client, JSON.stringify(d.items), d.vatRate, d.t.subtotal, d.t.vat, d.t.total, d.issue, d.due, d.notes]
       );
       if (d.leadId && d.client.email) await q(`UPDATE leads SET email=COALESCE(NULLIF(email,''), $2) WHERE id=$1`, [d.leadId, d.client.email]).catch(() => {});
+      await activity.log("invoice", { leadId: d.leadId, title: `Facture ${number} créée pour ${d.client.company || d.client.name || "un client"}`, detail: d.title, amountCents: d.t.total, ref: `invoice-created:${r.rows[0].id}` });
       return res.json({ invoice: serialize(r.rows[0]) });
     } catch (e) {
       if (e.code !== "23505") throw e;
@@ -261,6 +285,8 @@ api.post("/invoices/:id/send", async (req, res) => {
   if (!inv) return res.status(404).json({ error: "Facture introuvable" });
   try {
     await mailer.invoiceSend(inv, { message: req.body && req.body.message ? String(req.body.message).slice(0, 3000) : null });
+    await activity.log("invoice", { leadId: inv.lead_id, title: `Facture ${inv.number} envoyée à ${inv.client.email}`, amountCents: inv.total_cents });
+    if (inv.lead_id) await activity.noteLead(inv.lead_id, `Facture ${inv.number} envoyée (${activity.euro(inv.total_cents)})`);
     await q(`UPDATE invoices SET notes=notes WHERE id=$1`, [inv.id]);
     res.json({ ok: true, to: inv.client.email });
   } catch (e) { res.status(400).json({ error: e.message }); }
@@ -270,6 +296,8 @@ api.post("/invoices/:id/status", async (req, res) => {
   const st = req.body && req.body.status;
   if (st === "payee") { const inv = await markPaid(Number(req.params.id), "manuel", null); return res.json({ ok: true, changed: !!inv }); }
   if (st !== "emise" && st !== "annulee") return res.status(400).json({ error: "Statut invalide" });
+  // remise « à payer » d'une facture payée : le paiement sort du chiffre d'affaires et du journal
+  if (st === "emise") await q(`DELETE FROM activity WHERE type='payment' AND ref=$1`, [`invoice:${Number(req.params.id)}`]).catch(() => {});
   const r = await q(`UPDATE invoices SET status=$2, paid_at=CASE WHEN $2='emise' THEN NULL ELSE paid_at END, paid_via=CASE WHEN $2='emise' THEN NULL ELSE paid_via END WHERE id=$1 RETURNING *`, [req.params.id, st]);
   if (!r.rows[0]) return res.status(404).json({ error: "Facture introuvable" });
   if (st === "annulee" && r.rows[0].payment_link_id) stripe.call("POST", `/payment_links/${r.rows[0].payment_link_id}`, { active: false }).catch(() => {});

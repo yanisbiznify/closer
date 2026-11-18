@@ -243,6 +243,28 @@ async function invoicePaid(inv) {
   }
 }
 
+async function linkPaid(link, session, who) {
+  const n = await getNotif();
+  const amount = euro(session.amount_total || 0);
+  const email = session.customer_details && session.customer_details.email;
+  if (n.client.payment_receipt && email) {
+    await sendTemplate(email, `Paiement reçu : ${link.label}`, {
+      preheader: `Merci, ${amount} bien reçus`, title: "Merci, paiement bien reçu",
+      intro: "Bonjour,\n\nNous confirmons la bonne réception de votre paiement. Merci pour votre confiance !",
+      rows: [["Objet", link.label], ["Montant réglé", amount], ["Date", fmtWhen(new Date())]],
+      note: "Un reçu Stripe vous est également envoyé. Pour toute question, répondez simplement à cet email.",
+    });
+  }
+  if (n.owner.payment) {
+    const to = await ownerEmail(); if (!to) return;
+    await sendTemplate(to, `💰 ${amount} encaissés : ${who}`, {
+      audience: "owner", title: `Paiement reçu : ${amount}`,
+      intro: `${who} vient de payer « ${link.label} » par lien de paiement.`,
+      cta: { label: "Voir mon chiffre d'affaires", url: `${base()}/#revenue` },
+    });
+  }
+}
+
 async function invoiceSend(inv, { message } = {}) {
   const c = inv.client || {};
   if (!c.email) throw new Error("Ajoute l'email du client sur la facture");
@@ -386,4 +408,4 @@ publicRoutes.get("/email/logo.png", wrap(async (req, res) => {
   res.type("png").send(LOGO);
 }));
 
-module.exports = { api, publicRoutes, start, fire, send, layout, textToHtml, sendTemplate, bookingCreated, bookingChanged, invoicePaid, invoiceSend, replyReceived, digest, status, siteSubmission };
+module.exports = { api, publicRoutes, start, fire, send, linkPaid, layout, textToHtml, sendTemplate, bookingCreated, bookingChanged, invoicePaid, invoiceSend, replyReceived, digest, status, siteSubmission };

@@ -18,6 +18,7 @@ const dt = (iso) => { try { return new Date(iso).toLocaleString("fr-FR", { day: 
 const D = { cfg: null, device: null, call: null, callSid: null, queue: [], cur: null, phase: "idle", t0: 0, timer: null, list: "", tab: "script", lists: [], objections: [], auto: false, autoTimer: null, muted: false, pad: false, loaded: false };
 
 function onView(v) {
+  if (v === "dashboard" && typeof loadBusiness === "function") loadBusiness();
   if (v === "dialer") initDialer();
   if (v === "leads") loadLeadsView();
   if (v === "objections") loadObjections();

@@ -7,6 +7,7 @@ const { q } = require("./db");
 const google = require("./google");
 const tw = require("./twilio");
 const mailer = require("./mailer");
+const activity = require("./activity");
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const DAYS = ["1", "2", "3", "4", "5", "6", "7"]; // lundi … dimanche (ISO)
@@ -168,6 +169,7 @@ async function book(cal, b, ip) {
     [lead.id, `[${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}] RDV réservé en ligne (${cal.name}) : ${fmtWhen(start)}${note ? ` — « ${note} »` : ""}`]);
   const fresh = (await q(`SELECT * FROM leads WHERE id=$1`, [lead.id])).rows[0] || lead;
   mailer.fire(() => mailer.bookingCreated(a, fresh, cal));
+  await activity.log("booking", { leadId: lead.id, title: `${[fresh.first_name, fresh.last_name].filter(Boolean).join(" ") || fresh.name || "Un prospect"} a réservé « ${cal.name} »`, detail: new Date(a.start_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }), ref: `appt:${a.id}` });
   return { appointment: a, lead, meet: ev && ev.meet };
 }
 

@@ -518,6 +518,7 @@ publicRoutes.post("/site-lead/:key", express.json({ limit: "64kb" }), wrap(async
   // suite en arrière-plan : email au client du site, et pipeline si demandé
   const mailer = require("./mailer");
   mailer.fire(() => mailer.siteSubmission(s, data));
+  require("./activity").log("site_lead", { title: `Nouvelle demande sur le site ${s.name}`, detail: [nom, tel || email, data.service].filter(Boolean).join(" · ") });
   if (s.to_pipeline) {
     const phone = tw.normalizePhone(tel);
     const [first, ...rest] = nom.split(" ");
