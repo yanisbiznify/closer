@@ -53,7 +53,7 @@ async function openNewSite() {
           <div class="tp-img" style="--ac:${esc(t.accent)}">${t.image ? `<img src="${esc(t.image)}" alt="" loading="lazy">` : ""}<span class="tp-mode ${t.mode}">${t.mode === "dark" ? "Sombre" : "Clair"}</span></div>
           <div class="tp-meta"><b>${esc(t.name)}</b><span>${esc(t.sector)}</span></div>
         </button>
-        <a class="tp-prev" href="/api/sites/templates/${esc(t.key)}/preview" target="_blank" rel="noopener">Aperçu</a>
+        <a class="tp-prev" href="/modeles/${esc(t.key)}" target="_blank" rel="noopener">Aperçu</a>
       </article>`).join("")}
       <article class="tp-card tp-free"><button class="tp-pick" data-tpl="" aria-label="Création libre sans modèle"><div class="tp-img tp-blank"><span>✦</span></div><div class="tp-meta"><b>Création libre</b><span>L'IA invente un design unique, sans modèle</span></div></button></article>
     </div>` });

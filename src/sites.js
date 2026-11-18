@@ -483,6 +483,14 @@ api.post("/cloudflare/disconnect", wrap(async (req, res) => {
 /* ---------- Formulaires des sites (public, CORS) ---------- */
 const hits = new Map();
 const publicRoutes = express.Router();
+// aperçu public des modèles (aucune donnée client) : utile pour montrer un style à un prospect
+publicRoutes.get("/modeles/:key", wrap(async (req, res) => {
+  const d = studioTemplates.get(req.params.key);
+  if (!d) return res.status(404).send("Modèle introuvable");
+  res.setHeader("Cache-Control", "public, max-age=600");
+  res.setHeader("X-Robots-Tag", "noindex");
+  res.send(renderSite({ html: studioRender.render(d, { noindex: true }), notify_email: "", public_key: "apercu" }, { assets: [], assetUrl: () => "" }));
+}));
 publicRoutes.options("/site-lead/:key", (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST");
