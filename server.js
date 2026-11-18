@@ -10,6 +10,7 @@ const dialer = require("./src/dialer");
 const calendar = require("./src/calendar");
 const billing = require("./src/billing");
 const revenue = require("./src/revenue");
+const goals = require("./src/goals");
 const inbox = require("./src/inbox");
 const automations = require("./src/automations");
 const booking = require("./src/booking");
@@ -260,6 +261,7 @@ api.use(dialer.api);
 api.use(calendar.api);
 api.use(billing.api);
 api.use(revenue.api);
+api.use(goals.api);
 api.use(inbox.api);
 api.use(automations.api);
 api.use(booking.api);
@@ -304,6 +306,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   }
   await migrate();
   await sites.migrate();
+  await goals.migrate();
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();

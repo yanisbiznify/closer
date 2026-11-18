@@ -25,6 +25,7 @@ function onView(v) {
   if (v === "calendar") loadCalendar();
   if (v === "billing") loadBilling();
   if (v === "revenue") loadRevenue();
+  if (v === "goals") loadGoals();
   if (typeof cvOnView === "function") cvOnView(v);
   if (v === "automations") loadAutomations();
   if (v === "sites" && typeof loadSites === "function") loadSites();

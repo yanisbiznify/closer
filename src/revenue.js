@@ -119,4 +119,4 @@ api.get("/revenue", wrap(async (req, res) => {
   });
 }));
 
-module.exports = { api };
+module.exports = { api, PAYMENTS };

@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=20">
+<link rel="stylesheet" href="/app.css?v=21">
 </head>
 <body>
 <div class="shell">
@@ -27,6 +27,7 @@
     <nav class="nav" id="nav">
       <button data-v="dashboard" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><circle cx="7" cy="12" r="2.2"/><circle cx="17" cy="12" r="2.2"/></svg>Tableau de bord</button>
       <button data-v="revenue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="6" rx="1"/><rect x="10.5" y="8" width="3" height="10" rx="1"/><rect x="16" y="4" width="3" height="14" rx="1"/></svg>Chiffre d'affaires</button>
+      <button data-v="goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>Objectifs</button>
       <button data-v="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>Pipeline</button>
       <button data-v="conversations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg>Conversations<span class="count" id="nav-unread"></span></button>
       <button data-v="automations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Automatisations<span class="count" id="nav-tasks"></span></button>
@@ -117,6 +118,16 @@
           <div class="panel"><div class="panel-h"><h2>Revenus par source</h2><span class="sub">12 derniers mois</span></div><div class="panel-b" id="rv-source"></div></div>
           <div class="panel"><div class="panel-h"><h2>Revenus par liste d'appels</h2><span class="sub">12 derniers mois</span></div><div class="panel-b" id="rv-list"></div></div>
         </div>
+      </section>
+
+      <!-- OBJECTIFS -->
+      <section class="view" id="v-goals">
+        <div class="head">
+          <div><h1>Objectifs</h1><p id="ob-sum">Du cap à 3 mois jusqu'à ce que tu fais cette semaine.</p></div>
+          <div class="actions"><button class="btn primary" id="ob-add">Nouvel objectif</button></div>
+        </div>
+        <div id="ob-sections" class="ob-sections"></div>
+        <div id="ob-past"></div>
       </section>
 
       <section class="view" id="v-pipeline">
@@ -435,14 +446,15 @@
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/vendor/twilio/twilio.min.js" defer></script>
-<script src="/app.js?v=13"></script>
+<script src="/app.js?v=14"></script>
 <script src="/vendor/xlsx/xlsx.full.min.js" defer></script>
 <script src="/phone.js?v=7"></script>
-<script src="/dialer.js?v=15"></script>
+<script src="/dialer.js?v=16"></script>
 <script src="/crm.js?v=10"></script>
 <script src="/calendar.js?v=9"></script>
 <script src="/billing.js?v=5"></script>
 <script src="/revenue.js?v=1"></script>
+<script src="/goals.js?v=1"></script>
 <script src="/inbox.js?v=2"></script>
 <script src="/automations.js?v=2"></script>
 <script src="/booking-admin.js?v=1"></script>
