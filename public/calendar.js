@@ -1,6 +1,6 @@
 /* CLOSER PRO — Agenda (Google Agenda + Google Meet) */
 const CAL = { status: null, start: null, events: [], upcoming: [], loading: false };
-const H0 = 7, H1 = 21, PX = 1.3; // de 7 h à 21 h, 1 px par minute
+let H0 = 7, H1 = 24; const PX = 1.3; // plage horaire adaptée aux RDV de la semaine (heure locale)
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const ICON_MEET = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10l7-4v12l-7-4"/></svg>`;
 const isMobile = () => window.matchMedia("(max-width:860px)").matches;
@@ -83,6 +83,10 @@ async function loadUpcoming() {
 function renderWeek() {
   const n = span();
   const days = Array.from({ length: n }, (_, i) => addDays(CAL.start, i));
+  // tes prospects sont en France : on élargit la grille pour voir tous les RDV (soirée et nuit en heure locale)
+  H0 = 7; H1 = 24;
+  const wkEnd = addDays(CAL.start, n);
+  CAL.events.filter((e) => !e.allDay && new Date(e.start) < wkEnd && new Date(e.end) > CAL.start).forEach((e) => { const h = new Date(e.start).getHours(); if (h < H0) H0 = h; });
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const hours = Array.from({ length: H1 - H0 }, (_, i) => H0 + i);
   const height = (H1 - H0) * 60 * PX;
@@ -96,7 +100,8 @@ function renderWeek() {
       ${days.map((d, di) => `<div class="cal-col ${+d === +today ? "today" : ""}" data-day="${di}" style="height:${height}px">${hours.map(() => `<div class="cal-slot" style="height:${60 * PX}px"></div>`).join("")}${dayEvents(d)}${+d === +today ? nowLine() : ""}</div>`).join("")}
     </div>`;
   const body = $("#cal-body");
-  const scrollTo = (8 - H0) * 60 * PX - 10;
+  const first = CAL.events.filter((e) => !e.allDay && new Date(e.start) >= CAL.start && new Date(e.start) < wkEnd).map((e) => new Date(e.start).getHours()).sort((a, b) => a - b)[0];
+  const scrollTo = ((first != null ? Math.max(H0, first - 1) : 8) - H0) * 60 * PX - 10;
   body.scrollTop = scrollTo;
 }
 
