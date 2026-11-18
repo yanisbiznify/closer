@@ -89,7 +89,7 @@ async function today() {
 /* ---------- API ---------- */
 const api = express.Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
-api.get("/today", wrap(async (req, res) => res.json(await today())));
+api.get("/today", wrap(async (req, res) => { const d = await today(); if (req.user && !req.user.owner && req.user.name) d.name = req.user.name.split(" ")[0]; if (!require("./team").canMoney(req.user)) d.money = null; res.json(d); }));
 api.get("/badges", wrap(async (req, res) => res.json({ unread: (await q(`SELECT count(*)::int AS n FROM messages WHERE direction='in' AND read_at IS NULL`)).rows[0].n })));
 api.put("/today/goals", wrap(async (req, res) => {
   const cur = await mobileSettings();

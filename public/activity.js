@@ -26,21 +26,21 @@ async function loadBusiness() {
   try { [b, a] = await Promise.all([api("/dashboard/business"), api("/activity?limit=8")]); }
   catch (e) { box.innerHTML = ""; return; }
   const m = b.month;
-  const pct = m.pct == null ? null : Math.min(100, m.pct);
+  const pct = !m || m.pct == null ? null : Math.min(100, m.pct);
   box.innerHTML = `
     <div class="biz-grid">
-      <button class="kpi biz-main" data-go="revenue">
+      ${m ? `<button class="kpi biz-main" data-go="revenue">
         <div class="l">Encaissé ce mois-ci</div>
         <div class="v">${eur0(m.collected)}</div>
         ${m.goal ? `<div class="biz-bar" role="img" aria-label="${m.pct} % de l'objectif"><span style="width:${pct}%"></span><i style="left:${Math.min(100, m.expectedPct)}%" title="Où tu devrais être aujourd'hui"></i></div>
           <div class="d">${m.pct} % de ${eur0(m.goal)} · ${m.payments} paiement${m.payments > 1 ? "s" : ""}</div>` : `<div class="d">${m.payments} paiement${m.payments > 1 ? "s" : ""}</div>`}
       </button>
-      <button class="kpi" data-go="billing"><div class="l">À encaisser</div><div class="v">${eur0(b.pending.cents)}</div><div class="d">${b.pending.count} facture${b.pending.count > 1 ? "s" : ""}${b.pending.late ? ` · <span class="c-bad">${b.pending.late} en retard</span>` : ""}</div></button>
+      <button class="kpi" data-go="billing"><div class="l">À encaisser</div><div class="v">${eur0(b.pending.cents)}</div><div class="d">${b.pending.count} facture${b.pending.count > 1 ? "s" : ""}${b.pending.late ? ` · <span class="c-bad">${b.pending.late} en retard</span>` : ""}</div></button>` : ""}
       <button class="kpi" data-go="calendar"><div class="l">RDV, 7 prochains jours</div><div class="v">${b.upcomingAppointments}</div><div class="d">${b.wonThisMonth} client${b.wonThisMonth > 1 ? "s" : ""} signé${b.wonThisMonth > 1 ? "s" : ""} ce mois</div></button>
       <button class="kpi" data-go="pipeline"><div class="l">Nouveaux prospects</div><div class="v">${b.newLeads7d}</div><div class="d">ces 7 derniers jours</div></button>
     </div>
     <div class="panel act-panel">
-      <div class="panel-h"><div><h2>Activité récente</h2><div class="sub">Paiements, factures, réservations et demandes des sites, en direct</div></div></div>
+      <div class="panel-h"><div><h2>Activité récente</h2><div class="sub">${m ? "Paiements, factures, réservations et demandes des sites, en direct" : "Réservations, prospects et messages, en direct"}</div></div></div>
       <div id="act-list">${actList(a.items)}</div>
     </div>`;
   bindActList();

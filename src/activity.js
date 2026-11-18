@@ -61,7 +61,8 @@ api.get("/activity", wrap(async (req, res) => {
     ? await q(`SELECT a.*, l.first_name, l.last_name, l.name, l.company FROM activity a LEFT JOIN leads l ON l.id=a.lead_id WHERE a.id > $1 ORDER BY a.id LIMIT 30`, [since])
     : await q(`SELECT a.*, l.first_name, l.last_name, l.name, l.company FROM activity a LEFT JOIN leads l ON l.id=a.lead_id ORDER BY a.id DESC LIMIT $1`, [limit]);
   const last = (await q(`SELECT COALESCE(max(id),0)::bigint AS id FROM activity`)).rows[0].id;
-  res.json({ items: r.rows, last: Number(last) });
+  const items = require("./team").canMoney(req.user) ? r.rows : r.rows.filter((x) => !["payment", "invoice"].includes(x.type)).map((x) => ({ ...x, amount_cents: null }));
+  res.json({ items, last: Number(last) });
 }));
 
 // Chiffres business pour le tableau de bord (même calcul que l'onglet Chiffre d'affaires)
@@ -80,6 +81,7 @@ api.get("/dashboard/business", wrap(async (req, res) => {
   ]);
   const day = Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Paris", day: "numeric" }));
   const dim = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  if (!require("./team").canMoney(req.user)) return res.json({ month: null, pending: null, upcomingAppointments: rdv.rows[0].n, newLeads7d: leads.rows[0].n, wonThisMonth: won.rows[0].n });
   res.json({
     month: { collected: Number(paid.rows[0].c), payments: paid.rows[0].n, goal, pct: goal ? Math.round((Number(paid.rows[0].c) / goal) * 100) : null, expectedPct: Math.round((day / dim) * 100) },
     pending: { cents: Number(pending.rows[0].c), count: pending.rows[0].n, late: pending.rows[0].late },

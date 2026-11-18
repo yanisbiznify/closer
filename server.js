@@ -19,6 +19,7 @@ const sites = require("./src/sites");
 const activity = require("./src/activity");
 const prospect = require("./src/prospect");
 const mobile = require("./src/mobile");
+const team = require("./src/team");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -45,24 +46,30 @@ app.use((req, res, next) => {
 app.post("/api/stripe/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res, next) => billing.webhook(req, res).catch(next));
 app.use(express.json({ limit: "2mb" }));
 
-/* ---------- Session (cookie signé, un seul utilisateur) ---------- */
+/* ---------- Session (cookie signé) : compte principal ou membre de l'équipe ---------- */
 const COOKIE = "closer_session";
 const DAYS = 60;
 
 function sign(v) {
   return crypto.createHmac("sha256", config.sessionSecret || "x").update(v).digest("base64url");
 }
-function makeToken() {
+// compte principal : "exp.sig" ; membre : "exp.u<id>-<ver>.sig"
+function makeToken(user) {
   const exp = String(Date.now() + DAYS * 864e5);
-  return `${exp}.${sign(exp)}`;
+  const body = user ? `${exp}.u${user.id}-${user.ver}` : exp;
+  return `${body}.${sign(body)}`;
 }
-function validToken(t) {
-  if (!t || !config.sessionSecret) return false;
-  const [exp, sig] = t.split(".");
-  if (!exp || !sig) return false;
-  const good = sign(exp);
-  if (good.length !== sig.length || !crypto.timingSafeEqual(Buffer.from(good), Buffer.from(sig))) return false;
-  return Number(exp) > Date.now();
+function parseToken(t) {
+  if (!t || !config.sessionSecret) return null;
+  const parts = t.split(".");
+  if (parts.length < 2 || parts.length > 3) return null;
+  const sig = parts.pop(), body = parts.join(".");
+  const good = sign(body);
+  if (good.length !== sig.length || !crypto.timingSafeEqual(Buffer.from(good), Buffer.from(sig))) return null;
+  if (!(Number(parts[0]) > Date.now())) return null;
+  if (parts.length === 1) return { owner: true };
+  const m = /^u(\d+)-(\d+)$/.exec(parts[1]);
+  return m ? { id: Number(m[1]), ver: Number(m[2]) } : null;
 }
 function readCookie(req, name) {
   const h = req.headers.cookie || "";
@@ -77,29 +84,45 @@ function safeEqual(a, b) {
   const hb = crypto.createHash("sha256").update(String(b)).digest();
   return crypto.timingSafeEqual(ha, hb);
 }
-const authed = (req) => validToken(readCookie(req, COOKIE));
+const OWNER = () => ({ id: 0, owner: true, role: "admin", name: (config.appEmail || "").split("@")[0] || "Moi", email: config.appEmail, perms: team.KEYS });
+// utilisé par les pages publiques (factures) : vrai pour toute session valide
+const authed = (req) => !!parseToken(readCookie(req, COOKIE));
+async function currentUser(req) {
+  const t = parseToken(readCookie(req, COOKIE));
+  if (!t) return null;
+  if (t.owner) { const o = OWNER(); try { const st = await getSettings(); if (st.prenom && st.prenom !== "Moi") o.name = st.prenom; } catch {} return o; }
+  return team.load(t.id, t.ver);
+}
 function requireAuth(req, res, next) {
-  if (authed(req)) return next();
-  res.status(401).json({ error: "Non connecté" });
+  currentUser(req).then((u) => {
+    if (!u) return res.status(401).json({ error: "Non connecté" });
+    req.user = u; req.ownerEmail = config.appEmail;
+    if (!team.allowed(u, req.method, req.path)) return res.status(403).json({ error: "Ton compte n'a pas accès à cette partie de l'app. Demande à ton administrateur.", forbidden: true });
+    next();
+  }).catch(next);
 }
 
 const attempts = new Map();
-app.post("/api/login", (req, res) => {
-  const ip = req.ip || "?";
-  const a = attempts.get(ip) || { n: 0, t: Date.now() };
-  if (Date.now() - a.t > 15 * 60e3) { a.n = 0; a.t = Date.now(); }
-  if (a.n >= 10) return res.status(429).json({ error: "Trop de tentatives. Réessaie dans 15 minutes." });
-  if (!config.appPassword) return res.status(500).json({ error: "APP_PASSWORD n'est pas défini sur le serveur." });
-  const email = String((req.body && req.body.email) || "").trim().toLowerCase();
-  const okEmail = safeEqual(email, String(config.appEmail || "").trim().toLowerCase());
-  const okPass = safeEqual(req.body && req.body.password, config.appPassword);
-  if (!okEmail || !okPass) {
+const setSession = (req, res, user) => res.setHeader("Set-Cookie", `${COOKIE}=${makeToken(user)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${DAYS * 86400}${req.secure ? "; Secure" : ""}`);
+app.post("/api/login", async (req, res, next) => {
+  try {
+    const ip = req.ip || "?";
+    const a = attempts.get(ip) || { n: 0, t: Date.now() };
+    if (Date.now() - a.t > 15 * 60e3) { a.n = 0; a.t = Date.now(); }
+    if (a.n >= 10) return res.status(429).json({ error: "Trop de tentatives. Réessaie dans 15 minutes." });
+    const email = String((req.body && req.body.email) || "").trim().toLowerCase();
+    const password = (req.body && req.body.password) || "";
+    const isOwner = safeEqual(email, String(config.appEmail || "").trim().toLowerCase());
+    if (isOwner) {
+      if (!config.appPassword) return res.status(500).json({ error: "APP_PASSWORD n'est pas défini sur le serveur." });
+      if (safeEqual(password, config.appPassword)) { attempts.delete(ip); setSession(req, res, null); return res.json({ ok: true }); }
+    } else {
+      const u = await team.findForLogin(email, password);
+      if (u) { attempts.delete(ip); setSession(req, res, u); return res.json({ ok: true }); }
+    }
     a.n++; attempts.set(ip, a);
-    return res.status(401).json({ error: "Email ou mot de passe incorrect." });
-  }
-  attempts.delete(ip);
-  res.setHeader("Set-Cookie", `${COOKIE}=${makeToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${DAYS * 86400}${req.secure ? "; Secure" : ""}`);
-  res.json({ ok: true });
+    res.status(401).json({ error: "Email ou mot de passe incorrect." });
+  } catch (e) { next(e); }
 });
 app.post("/api/logout", (req, res) => {
   res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
@@ -125,7 +148,11 @@ const api = express.Router();
 api.use(requireAuth);
 
 api.get("/me", async (req, res) => {
-  res.json({ ok: true, missing: config.missing(), dialerMissing: tw.missing(), worker: worker.state(), model: config.anthropicModel });
+  const u = req.user;
+  const views = new Set(team.FEATURES.filter((f) => u.owner || u.role === "admin" || u.perms.includes(f.key)).flatMap((f) => f.views));
+  res.json({ ok: true, missing: config.missing(), dialerMissing: tw.missing(), worker: worker.state(), model: config.anthropicModel,
+    user: { id: u.id, name: u.name, email: u.email, role: u.role, owner: !!u.owner, perms: u.owner || u.role === "admin" ? team.KEYS : u.perms, roleLabel: u.owner ? "Propriétaire" : (team.ROLES[u.role] || {}).label },
+    views: [...views] });
 });
 
 const LIST_COLS = `id, source, date, direction, phone, contact_name, label, duration, call_status, has_recording,
@@ -273,6 +300,7 @@ api.use(sites.api);
 api.use(activity.api);
 api.use(prospect.api);
 api.use(mobile.api);
+api.use(team.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
@@ -316,6 +344,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   await activity.migrate();
   await prospect.migrate();
   await mobile.migrate();
+  await team.migrate();
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();

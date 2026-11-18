@@ -43,6 +43,7 @@ async function api(path, opts = {}) {
 
 /* ---------- Navigation ---------- */
 function show(view) {
+  if (window.__views && !window.__views.includes(view)) view = window.__views[0] || "dashboard";
   $$("#nav button").forEach((x) => x.classList.toggle("on", x.dataset.v === view));
   $$("section.view").forEach((s) => s.classList.toggle("on", s.id === "v-" + view));
   $("#side").classList.remove("on");
@@ -61,6 +62,7 @@ $("#q").addEventListener("input", (e) => { query = e.target.value.trim().toLower
 
 /* ---------- Données ---------- */
 async function refresh() {
+  if (window.__views && !window.__views.includes("calls")) { setStatus("En ligne", false); return; }
   try {
     const d = await api("/calls");
     calls = d.calls; counts = d.counts || {}; workerState = d.worker || {};
@@ -438,12 +440,15 @@ $("#btn-logout").onclick = async () => { await fetch("/api/logout", { method: "P
   try {
     const me = await api("/me");
     window.__me = me;
+    if (me.views) window.__views = me.views;
+    if (typeof applyPerms === "function") applyPerms(me);
+    if (me.views && start && !me.views.includes(start)) show(me.views[0]);
     if (me.missing && me.missing.length) {
       $("#cfg-warn").innerHTML = `<div class="callout err"><div class="grow"><b>Configuration incomplète</b><p>Ajoute ces variables dans Railway : ${me.missing.map(esc).join(", ")}.</p></div></div>`;
     }
   } catch { return; }
   try { settings = await api("/settings"); fillSettings(); } catch {}
-  try { renderBilan(await api("/bilan")); } catch { renderBilan(null); }
+  if (!window.__views || window.__views.includes("coach")) { try { renderBilan(await api("/bilan")); } catch { renderBilan(null); } }
   refresh();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 })();

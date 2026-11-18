@@ -80,12 +80,14 @@ async function loadToday() {
   let d;
   try { d = MOB.data = await api("/today"); } catch (e) { box.innerHTML = ""; return; }
   const cp = d.calls.goal ? d.calls.done / d.calls.goal : 0;
+  const hasMoney = !!d.money;
+  if (!hasMoney) d.money = { goal: 0, month: 0, today: 0, last: null };
   const mp = d.money.goal ? d.money.month / d.money.goal : 0;
   const missions = [
     { done: d.calls.done >= d.calls.goal, label: `${d.calls.goal} appels`, val: `${Math.min(d.calls.done, d.calls.goal)}/${d.calls.goal}` },
     { done: d.rdv.today >= d.rdv.goal, label: `${d.rdv.goal} RDV posés`, val: `${Math.min(d.rdv.today, d.rdv.goal)}/${d.rdv.goal}` },
     { done: d.money.today > 0, label: "Un encaissement", val: d.money.today ? eur0(d.money.today) : "0 €" },
-  ];
+  ].slice(0, hasMoney ? 3 : 2);
   const doneN = missions.filter((m) => m.done).length;
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const hour = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -109,12 +111,12 @@ async function loadToday() {
       <div class="mh-h"><h2>Missions du jour</h2><span class="mh-pill ${doneN === 3 ? "ok" : ""}">${doneN}/3</span></div>
       <ul class="mh-miss">${missions.map((m) => `<li class="${m.done ? "done" : ""}"><span class="mh-tick">${m.done ? I(ICONS.check, 14) : ""}</span><span>${esc(m.label)}</span><b>${esc(m.val)}</b></li>`).join("")}</ul>
     </section>
-    <button class="mh-card mh-money" data-go-tab="revenue" aria-label="Chiffre d'affaires du mois">
+    ${hasMoney ? "" : "<!--"}<button class="mh-card mh-money" data-go-tab="revenue" aria-label="Chiffre d'affaires du mois">
       <div class="mh-h"><h2>Ce mois-ci</h2>${d.money.goal ? `<span class="mh-pill">${Math.round(mp * 100)} %</span>` : ""}</div>
       <p class="mh-big">${eur0(d.money.month)}${d.money.goal ? `<span> / ${eur0(d.money.goal)}</span>` : ""}</p>
       ${d.money.goal ? `<div class="mh-bar"><span style="width:${Math.min(100, mp * 100)}%"></span></div>` : ""}
       ${d.money.last ? `<p class="mh-sub">Dernier : ${esc(d.money.last.title)} · ${esc(eur0(d.money.last.amount_cents))}</p>` : ""}
-    </button>
+    </button>${hasMoney ? "" : "-->"}
     <section class="mh-card" aria-label="Prochains rendez-vous">
       <div class="mh-h"><h2>Prochains RDV</h2><button class="link" data-go-tab="calendar">Agenda</button></div>
       ${d.appointments.length ? `<ul class="mh-list">${d.appointments.map((a) => `<li>
