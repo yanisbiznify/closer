@@ -143,11 +143,24 @@ async function renderLead() {
       <input id="lf-${k}" data-f="${k}" value="${esc(k === "value" ? (Number(l.value) ? Number(l.value) : "") : l[k] && k === "phone" ? fmtPhone(l[k]) : l[k] || "")}" ${k === "value" ? 'inputmode="decimal"' : ""} ${k === "maps_url" ? 'placeholder="https://maps.google.com/…"' : ""}></div>`).join("")}
       <div class="field wide"><label for="lf-notes">Notes</label><textarea id="lf-notes" data-f="notes" style="min-height:90px">${esc(l.notes || "")}</textarea></div>
     </div>
+    <div class="block"><h3>Tags</h3><div class="ld-tags" id="ld-tags"></div>
+      <p class="small muted" style="margin:6px 0 0">Ajouter un tag peut lancer une automatisation (ex. « questionnaire-recu », « en-ligne »).</p></div>
     <div class="block"><h3>Historique des appels</h3><div id="ld-hist"><div class="skeleton" style="width:50%"></div></div></div>
     <div class="ld-meta small muted">${l.list_name ? `Liste « ${esc(l.list_name)} », ` : ""}${l.source ? `source ${esc(l.source)}, ` : ""}ajouté le ${esc(fmtDate(l.created_at))}</div>
     <div style="margin-top:16px"><button class="btn danger" id="ld-del">Supprimer ce prospect</button></div>`;
   $("#ld-call").onclick = () => phoneCall(LD.lead, { onDone: () => { if ($("#v-pipeline").classList.contains("on")) loadPipeline(); } });
   $("#ld-stage").onchange = (e) => saveLead({ stage: e.target.value });
+  const drawTags = (tags) => {
+    $("#ld-tags").innerHTML = (tags || []).map((t) => `<span class="ld-tag">${esc(t)}<button type="button" data-rmtag="${esc(t)}" aria-label="Retirer le tag ${esc(t)}">×</button></span>`).join("") +
+      `<input id="ld-tag-in" placeholder="+ tag" aria-label="Ajouter un tag" list="ld-tag-sug"><datalist id="ld-tag-sug">${["questionnaire-recu", "appel-lancement-fait", "en-ligne", "client-actif"].map((x) => `<option value="${x}"></option>`).join("")}</datalist>`;
+    $$("#ld-tags [data-rmtag]").forEach((b) => (b.onclick = async () => { const r = await api(`/leads/${l.id}/tags`, { method: "POST", body: JSON.stringify({ remove: b.dataset.rmtag }) }); l.tags = r.tags; drawTags(r.tags); }));
+    $("#ld-tag-in").onkeydown = async (e) => {
+      if (e.key !== "Enter" || !e.target.value.trim()) return;
+      e.preventDefault();
+      const r = await api(`/leads/${l.id}/tags`, { method: "POST", body: JSON.stringify({ add: e.target.value }) }); l.tags = r.tags; drawTags(r.tags); $("#ld-tag-in").focus();
+    };
+  };
+  drawTags(l.tags);
   $("#ld-book").onclick = () => { const lead = LD.lead; closeLead(); openBooking({ lead }); };
   $("#ld-msg").onclick = () => { const lead = LD.lead; closeLead(); openConversation(lead.id); };
   $("#ld-bill").onclick = () => { const lead = LD.lead; closeLead(); openInvoiceEditor({ lead }); };

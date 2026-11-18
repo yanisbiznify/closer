@@ -26,6 +26,7 @@ function onView(v) {
   if (v === "billing") loadBilling();
   if (v === "revenue") loadRevenue();
   if (typeof cvOnView === "function") cvOnView(v);
+  if (v === "automations") loadAutomations();
 }
 
 /* ---------- Dialer ---------- */

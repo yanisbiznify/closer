@@ -11,6 +11,7 @@ const calendar = require("./src/calendar");
 const billing = require("./src/billing");
 const revenue = require("./src/revenue");
 const inbox = require("./src/inbox");
+const automations = require("./src/automations");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -239,6 +240,7 @@ api.use(calendar.api);
 api.use(billing.api);
 api.use(revenue.api);
 api.use(inbox.api);
+api.use(automations.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
@@ -278,6 +280,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();
   inbox.start();
+  automations.start();
   if (stripe.enabled()) stripe.ensureWebhook().then(() => console.log(`Stripe prêt (${stripe.mode()})`)).catch((e) => console.warn("Stripe :", e.message));
   if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {

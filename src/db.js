@@ -175,6 +175,112 @@ async function migrate() {
   `);
   // Les traitements interrompus par un redémarrage repartent dans la file
   await q(`UPDATE calls SET status='queued' WHERE status IN ('transcribing','analyzing')`);
+  await migrateAutomations();
+}
+
+// Automatisations : tables + déclencheurs Postgres qui transforment chaque changement en événement
+async function migrateAutomations() {
+  await q(`
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+    CREATE TABLE IF NOT EXISTS automations (
+      id          SERIAL PRIMARY KEY,
+      name        TEXT NOT NULL,
+      description TEXT,
+      enabled     BOOLEAN NOT NULL DEFAULT false,
+      trigger     JSONB NOT NULL,
+      steps       JSONB NOT NULL DEFAULT '[]',
+      options     JSONB NOT NULL DEFAULT '{}',
+      template    TEXT,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS automation_events (
+      id         BIGSERIAL PRIMARY KEY,
+      type       TEXT NOT NULL,
+      lead_id    INTEGER,
+      data       JSONB NOT NULL DEFAULT '{}',
+      processed  BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS automation_events_todo ON automation_events (id) WHERE NOT processed;
+    CREATE TABLE IF NOT EXISTS automation_runs (
+      id            SERIAL PRIMARY KEY,
+      automation_id INTEGER NOT NULL REFERENCES automations(id) ON DELETE CASCADE,
+      lead_id       INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      context       JSONB NOT NULL DEFAULT '{}',
+      step          INTEGER NOT NULL DEFAULT 0,
+      status        TEXT NOT NULL DEFAULT 'active',   -- active | done | stopped | failed
+      next_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      log           JSONB NOT NULL DEFAULT '[]',
+      started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      ended_at      TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS automation_runs_due ON automation_runs (next_at) WHERE status = 'active';
+    CREATE INDEX IF NOT EXISTS automation_runs_lead ON automation_runs (lead_id, automation_id);
+    CREATE TABLE IF NOT EXISTS tasks (
+      id         SERIAL PRIMARY KEY,
+      lead_id    INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      title      TEXT NOT NULL,
+      body       TEXT,
+      due_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+      done_at    TIMESTAMPTZ,
+      source     TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE OR REPLACE FUNCTION closer_ev_leads() RETURNS trigger AS $f$
+    BEGIN
+      IF TG_OP = 'INSERT' THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('lead_created', NEW.id, jsonb_build_object('source', NEW.source, 'list_id', NEW.list_id, 'stage', NEW.stage));
+      ELSE
+        IF NEW.stage IS DISTINCT FROM OLD.stage THEN
+          INSERT INTO automation_events (type, lead_id, data) VALUES ('stage_changed', NEW.id, jsonb_build_object('from', OLD.stage, 'to', NEW.stage));
+        END IF;
+        IF NEW.outcome_at IS DISTINCT FROM OLD.outcome_at AND NEW.outcome_at IS NOT NULL THEN
+          INSERT INTO automation_events (type, lead_id, data) VALUES ('call_outcome', NEW.id, jsonb_build_object('outcome', NEW.status, 'attempts', NEW.attempts));
+        END IF;
+        IF NEW.tags IS DISTINCT FROM OLD.tags THEN
+          INSERT INTO automation_events (type, lead_id, data)
+            SELECT 'tag_added', NEW.id, jsonb_build_object('tag', t) FROM unnest(NEW.tags) t WHERE NOT (t = ANY(COALESCE(OLD.tags, '{}')));
+        END IF;
+      END IF;
+      RETURN NEW;
+    END $f$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS closer_ev_leads ON leads;
+    CREATE TRIGGER closer_ev_leads AFTER INSERT OR UPDATE ON leads FOR EACH ROW EXECUTE FUNCTION closer_ev_leads();
+
+    CREATE OR REPLACE FUNCTION closer_ev_messages() RETURNS trigger AS $f$
+    BEGIN
+      IF NEW.direction = 'in' AND NEW.lead_id IS NOT NULL THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('message_received', NEW.lead_id, jsonb_build_object('channel', NEW.channel, 'message_id', NEW.id));
+      END IF;
+      RETURN NEW;
+    END $f$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS closer_ev_messages ON messages;
+    CREATE TRIGGER closer_ev_messages AFTER INSERT ON messages FOR EACH ROW EXECUTE FUNCTION closer_ev_messages();
+
+    CREATE OR REPLACE FUNCTION closer_ev_appointments() RETURNS trigger AS $f$
+    BEGIN
+      IF NEW.lead_id IS NOT NULL THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('appointment_booked', NEW.lead_id, jsonb_build_object('appointment_id', NEW.id));
+      END IF;
+      RETURN NEW;
+    END $f$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS closer_ev_appointments ON appointments;
+    CREATE TRIGGER closer_ev_appointments AFTER INSERT ON appointments FOR EACH ROW EXECUTE FUNCTION closer_ev_appointments();
+
+    CREATE OR REPLACE FUNCTION closer_ev_invoices() RETURNS trigger AS $f$
+    BEGIN
+      IF TG_OP = 'INSERT' THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('invoice_created', NEW.lead_id, jsonb_build_object('invoice_id', NEW.id));
+      ELSIF NEW.status = 'payee' AND OLD.status IS DISTINCT FROM 'payee' THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('invoice_paid', NEW.lead_id, jsonb_build_object('invoice_id', NEW.id));
+      END IF;
+      RETURN NEW;
+    END $f$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS closer_ev_invoices ON invoices;
+    CREATE TRIGGER closer_ev_invoices AFTER INSERT OR UPDATE ON invoices FOR EACH ROW EXECUTE FUNCTION closer_ev_invoices();
+  `);
 }
 
 const DEFAULT_SETTINGS = {

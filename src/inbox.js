@@ -293,4 +293,4 @@ api.post("/inbox/sync", wrap(async (req, res) => {
   try { res.json(await syncEmail()); } catch (e) { res.status(502).json({ error: e.message }); }
 }));
 
-module.exports = { api, hooks, start };
+module.exports = { api, hooks, start, sendSms, sendEmail, emailStatus, ensureSms };
