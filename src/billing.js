@@ -111,8 +111,8 @@ async function handleSession(s) {
     if (r.rows[0]) invId = r.rows[0].id;
   }
   if (invId) { await markPaid(invId, s.payment_link ? "lien Stripe" : "carte (facture)", s.id); return; }
-  if (s.payment_link) {
-    const l = (await q(`SELECT id FROM payment_links WHERE stripe_id=$1`, [s.payment_link])).rows[0];
+  if (s.payment_link || meta.link_id) {
+    const l = meta.link_id ? (await q(`SELECT id FROM payment_links WHERE id=$1`, [Number(meta.link_id)])).rows[0] : (await q(`SELECT id FROM payment_links WHERE stripe_id=$1`, [s.payment_link])).rows[0];
     if (!l) return;
     const ins = await q(`INSERT INTO link_payments (link_id, session_id, amount_cents) VALUES ($1,$2,$3) ON CONFLICT (session_id) DO NOTHING RETURNING id`, [l.id, s.id, s.amount_total || 0]);
     if (ins.rows[0]) await q(`UPDATE payment_links SET paid_count=paid_count+1, paid_cents=paid_cents+$2 WHERE id=$1`, [l.id, s.amount_total || 0]);
@@ -340,7 +340,7 @@ function page(inv, b, flash) {
     : cancelled ? `<div class="paybox"><div><b>Cette facture a été annulée.</b><p>Aucun paiement n'est demandé.</p></div></div>`
     : `<div class="paybox"><div><span class="lbl">Montant à régler</span><span class="big">${money(inv.total_cents, inv.currency)}</span>${inv.due_date ? `<p>Échéance : ${day(inv.due_date)}</p>` : ""}</div>
        ${canPay ? `<form method="post" action="/facture/${esc(inv.token)}/payer" id="payform"><button class="pay" type="submit" id="paybtn">Payer ${money(inv.total_cents, inv.currency)}</button><p class="secure">Paiement sécurisé par carte bancaire avec Stripe</p></form>` : `<p class="secure">Le paiement en ligne n'est pas encore disponible. Contacte ${esc(b.email || b.company)}.</p>`}</div>
-       ${inPage ? `<div id="checkout" class="checkout" hidden></div>` : ""}`;
+`;
   const fromLines = [b.address, b.registration, b.vatNumber ? "N° TVA : " + b.vatNumber : "", [b.email, b.phone].filter(Boolean).join(" · "), b.website].filter(Boolean);
   const toLines = [c.company && c.name ? c.name : "", c.address, c.vat ? "N° TVA : " + c.vat : "", c.email].filter(Boolean);
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -423,29 +423,58 @@ ${inv.notes || b.paymentTerms ? `<div class="notes">${inv.notes ? `<p><b>Note</b
 </article>
 <div class="tools"><a href="${pdf}">Télécharger la facture (PDF)</a></div>
 </main>
-${inPage ? `<script src="https://js.stripe.com/v3/"></script>
-<script>
-(function(){
-  var form=document.getElementById("payform"),btn=document.getElementById("paybtn"),box=document.getElementById("checkout");
-  if(!form||!window.Stripe)return;
-  form.addEventListener("submit",async function(e){
-    e.preventDefault();btn.disabled=true;btn.textContent="Chargement du paiement…";
-    try{
-      var r=await fetch("/facture/${esc(inv.token)}/session",{method:"POST"});var j=await r.json();
-      if(j.reload){location.reload();return;}
-      if(!r.ok||!j.clientSecret)throw new Error(j.error||"erreur");
-      var stripe=Stripe(j.publishableKey,{locale:"fr"});
-      var co=await stripe.initEmbeddedCheckout({clientSecret:j.clientSecret});
-      form.closest(".paybox").querySelector("form").hidden=true;
-      box.hidden=false;co.mount(box);box.scrollIntoView({behavior:"smooth",block:"start"});
-    }catch(err){form.submit();}
-  });
-})();
-</script>` : ""}
+${inPage ? payPopup(`/facture/${inv.token}/session`, `/facture/${inv.token}`, accent) : ""}
 ${flash && flash.warn && /confirmation/.test(flash.text) ? `<script>
 (function(){var n=0;var t=setInterval(async function(){n++;try{var r=await fetch("/facture/${esc(inv.token)}/etat");var j=await r.json();if(j.status==="payee"){clearInterval(t);location.replace(location.pathname+"?paye=1");}}catch(e){}if(n>40)clearInterval(t);},3000);})();
 </script>` : ""}
 </body></html>`;
+}
+
+// Fenêtre de paiement par carte (Stripe Embedded Checkout dans une fenêtre par-dessus la page)
+function payPopup(sessionUrl, backUrl, accent) {
+  return `<div class="pp" id="pp" role="dialog" aria-modal="true" aria-labelledby="pp-t" hidden>
+  <div class="pp-box"><div class="pp-head"><b id="pp-t">Paiement sécurisé</b><button type="button" class="pp-x" id="pp-x" aria-label="Fermer">&times;</button></div>
+  <div id="pp-co" class="pp-co"><p class="pp-wait">Chargement du formulaire de paiement…</p></div></div></div>
+<style>
+.pp{position:fixed;inset:0;z-index:50;background:rgba(11,18,32,.55);display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow-y:auto}
+.pp[hidden]{display:none}
+.pp-box{background:#fff;border-radius:18px;width:100%;max-width:560px;box-shadow:0 30px 80px rgba(11,18,32,.35);overflow:hidden}
+.pp-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #E4E7EE;border-top:5px solid ${accent}}
+.pp-head b{font:600 15px Inter,system-ui,sans-serif;color:#0B1220}
+.pp-x{appearance:none;border:0;background:#F5F7FB;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer;color:#0B1220}
+.pp-x:focus-visible{outline:3px solid ${accent};outline-offset:2px}
+.pp-co{min-height:200px;padding:8px 4px}
+.pp-wait{text-align:center;color:#5B6475;font:14px Inter,system-ui,sans-serif;padding:60px 0}
+body.pp-on{overflow:hidden}
+@media (max-width:560px){.pp{padding:0}.pp-box{border-radius:0;min-height:100%}}
+</style>
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+(function(){
+  var form=document.getElementById("payform"),btn=document.getElementById("paybtn"),pp=document.getElementById("pp"),mount=document.getElementById("pp-co"),co=null,sid=null;
+  if(!form)return;
+  function close(){pp.hidden=true;document.body.classList.remove("pp-on");if(co){co.destroy();co=null;}mount.innerHTML='<p class="pp-wait">Chargement du formulaire de paiement…</p>';btn.disabled=false;btn.focus();}
+  document.getElementById("pp-x").onclick=close;
+  pp.addEventListener("click",function(e){if(e.target===pp)close();});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!pp.hidden)close();});
+  form.addEventListener("submit",async function(e){
+    if(!window.Stripe)return;
+    e.preventDefault();btn.disabled=true;pp.hidden=false;document.body.classList.add("pp-on");
+    try{
+      var r=await fetch("${sessionUrl}",{method:"POST"});var j=await r.json();
+      if(j.reload){location.reload();return;}
+      if(!r.ok||!j.clientSecret)throw new Error(j.error||"erreur");
+      sid=j.sessionId;
+      var stripe=Stripe(j.publishableKey,{locale:"fr"});
+      co=await stripe.initEmbeddedCheckout({clientSecret:j.clientSecret,onComplete:function(){
+        mount.innerHTML='<p class="pp-wait"><b style="color:#11643C">Paiement reçu. Merci !</b><br>Mise à jour…</p>';
+        setTimeout(function(){location.replace("${backUrl}?session_id="+encodeURIComponent(sid));},900);
+      }});
+      mount.innerHTML="";co.mount(mount);
+    }catch(err){close();form.submit();}
+  });
+})();
+</script>`;
 }
 
 async function checkoutParams(inv) {
@@ -462,6 +491,28 @@ async function checkoutParams(inv) {
   };
 }
 
+function linkPage(l, b, done) {
+  const logo = b.logo || DEFAULT_LOGO;
+  const accent = b.accent || "#1877F2";
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>${esc(l.label)} — ${esc(b.company)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}body{margin:0;background:#F5F7FB;color:#0B1220;font:15px/1.55 Inter,system-ui,sans-serif}
+.w{max-width:480px;margin:0 auto;padding:48px 18px}.c{background:#fff;border:1px solid #E4E7EE;border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(11,18,32,.06)}
+.band{height:6px;background:${accent}}.in{padding:30px 30px 28px}.logo{height:34px;display:block;margin-bottom:26px}
+.lbl{color:#5B6475;font-size:13px}.t{font-size:19px;font-weight:600;margin:2px 0 14px}.amt{font-size:34px;font-weight:700;letter-spacing:-.03em;margin-bottom:22px}
+.pay{appearance:none;border:0;width:100%;background:${accent};color:#fff;font:600 16px Inter,system-ui,sans-serif;padding:16px;border-radius:12px;cursor:pointer}
+.pay:focus-visible{outline:3px solid #0B1220;outline-offset:3px}.sec{text-align:center;font-size:12px;color:#5B6475;margin:10px 0 0}
+.ok{background:#E9F8F0;color:#11643C;border-radius:12px;padding:16px;font-weight:600;text-align:center}.f{text-align:center;font-size:12px;color:#5B6475;margin-top:18px}</style></head>
+<body><main class="w"><div class="c"><div class="band"></div><div class="in">
+${logo ? `<img class="logo" src="${logo}" alt="${esc(b.company)}">` : ""}
+<div class="lbl">Paiement à ${esc(b.company)}</div><div class="t">${esc(l.label)}</div><div class="amt">${money(l.amount_cents, l.currency || "eur")}</div>
+${done ? `<div class="ok" role="status">Paiement reçu. Merci !</div>` : `<form id="payform" method="get" action="${esc(l.url)}"><button class="pay" id="paybtn" type="submit">Payer ${money(l.amount_cents, l.currency || "eur")}</button><p class="sec">Paiement sécurisé par carte bancaire avec Stripe</p></form>`}
+</div></div><p class="f">${esc([b.company, b.registration].filter(Boolean).join(" — "))}</p></main>
+${done ? "" : payPopup(`/p/${l.id}/session`, `/p/${l.id}`, accent)}
+</body></html>`;
+}
+
 function publicRoutes(isOwner) {
   const r = safeRouter();
   // lien de paiement court : pay.biznify.pro/p/12 → page de paiement Stripe
@@ -470,7 +521,30 @@ function publicRoutes(isOwner) {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Robots-Tag", "noindex");
     if (!l || !l.active) return res.status(404).send("<!DOCTYPE html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Lien expiré</title><p style=\"font-family:system-ui;padding:40px;color:#0B1220\">Ce lien de paiement n'est plus actif. Contactez Biznify pour en recevoir un nouveau.</p>");
-    res.redirect(302, l.url);
+    if (!stripe.publishableKey()) return res.redirect(302, l.url);
+    const link = (await q(`SELECT * FROM payment_links WHERE id=$1`, [req.params.id])).rows[0];
+    let done = false;
+    const sid = String(req.query.session_id || "");
+    if (/^cs_[A-Za-z0-9_]+$/.test(sid)) {
+      try { const s = await stripe.call("GET", `/checkout/sessions/${sid}`); if (Number((s.metadata || {}).link_id) === link.id) { await handleSession(s); done = s.payment_status === "paid"; } } catch (e) { console.warn("Vérification Stripe :", e.message); }
+    }
+    res.send(linkPage(link, await getBilling(), done));
+  });
+  r.post("/p/:id/session", async (req, res) => {
+    const l = /^\d+$/.test(req.params.id) ? (await q(`SELECT * FROM payment_links WHERE id=$1`, [req.params.id])).rows[0] : null;
+    if (!l || !l.active) return res.status(404).json({ error: "Lien inactif", reload: true });
+    if (!stripe.publishableKey()) return res.status(409).json({ error: "Paiement intégré indisponible" });
+    try {
+      const b = await getBilling();
+      const back = `${payBase() || `${req.protocol}://${req.get("host")}`}/p/${l.id}`;
+      const s = await stripe.call("POST", "/checkout/sessions", {
+        mode: "payment", locale: "fr", ui_mode: "embedded", redirect_on_completion: "if_required", return_url: `${back}?session_id={CHECKOUT_SESSION_ID}`,
+        line_items: [{ quantity: 1, price_data: { currency: l.currency || "eur", unit_amount: l.amount_cents, product_data: { name: l.label.slice(0, 250), description: b.company } } }],
+        metadata: { link_id: String(l.id) },
+        payment_intent_data: { description: `${l.label} — ${b.company}`.slice(0, 500), metadata: { link_id: String(l.id) } },
+      });
+      res.json({ clientSecret: s.client_secret, sessionId: s.id, publishableKey: stripe.publishableKey() });
+    } catch (e) { console.warn("Checkout lien :", e.message); res.status(502).json({ error: "Le paiement en ligne est momentanément indisponible" }); }
   });
   r.get("/facture/:token", async (req, res) => {
     const inv = (await q(`SELECT * FROM invoices WHERE token=$1`, [req.params.token])).rows[0];
@@ -513,8 +587,8 @@ function publicRoutes(isOwner) {
     if (!stripe.publishableKey()) return res.status(409).json({ error: "Paiement intégré indisponible" });
     try {
       const url = invoiceUrl(inv) || `${req.protocol}://${req.get("host")}/facture/${inv.token}`;
-      const s = await stripe.call("POST", "/checkout/sessions", { ...(await checkoutParams(inv)), ui_mode: "embedded", return_url: `${url}?session_id={CHECKOUT_SESSION_ID}` });
-      res.json({ clientSecret: s.client_secret, publishableKey: stripe.publishableKey() });
+      const s = await stripe.call("POST", "/checkout/sessions", { ...(await checkoutParams(inv)), ui_mode: "embedded", redirect_on_completion: "if_required", return_url: `${url}?session_id={CHECKOUT_SESSION_ID}` });
+      res.json({ clientSecret: s.client_secret, sessionId: s.id, publishableKey: stripe.publishableKey() });
     } catch (e) { console.warn("Checkout intégré :", e.message); res.status(502).json({ error: "Le paiement en ligne est momentanément indisponible" }); }
   });
 
