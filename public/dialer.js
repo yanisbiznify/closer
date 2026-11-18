@@ -291,22 +291,44 @@ function openImport(title, sub, body, onGo) {
   };
 }
 const importDone = (r) => {
-  toast(`${r.added} prospect${r.added > 1 ? "s" : ""} importé${r.added > 1 ? "s" : ""}${r.invalid ? `, ${r.invalid} sans numéro valide` : ""}${r.dup ? `, ${r.dup} en double` : ""}`);
+  toast(`${r.added} prospect${r.added > 1 ? "s" : ""} importé${r.added > 1 ? "s" : ""}${r.invalid ? `, ${r.invalid} sans numéro valide` : ""}${r.dup ? `, ${r.dup} déjà dans CLOSER PRO` : ""}`);
   $("#lead-list").value = r.listId; loadLeadsView(); D.loaded && loadQueue();
 };
 
 $("#btn-imp-ghl").onclick = async () => {
-  openImport("Importer depuis GoHighLevel", "Tous les contacts qui portent ce tag deviennent une liste d'appels.",
-    `<div class="field"><label for="imp-tag">Tag GHL</label><select id="imp-tag"><option>Chargement…</option></select></div>
-     <div class="field"><label for="imp-name">Nom de la liste</label><input id="imp-name" placeholder="Chauffagistes Tours"></div>`,
+  let mode = "pipeline";
+  openImport("Importer depuis GoHighLevel", "Récupère tes leads GHL dans CLOSER PRO, avec leur étape et leur valeur.",
+    `<div class="seg" id="imp-mode" style="margin-bottom:16px"><button data-m="pipeline" class="on">Un pipeline</button><button data-m="tag">Un tag</button></div>
+     <div id="imp-m-pipeline">
+       <div class="field"><label for="imp-pipe">Pipeline GHL</label><select id="imp-pipe"><option>Chargement…</option></select></div>
+       <p class="small muted" style="margin:0">Chaque opportunité devient un prospect, placé à l'étape correspondante du pipeline CLOSER PRO (RDV, rappel, client signé…). Les prospects déjà importés ne sont pas dupliqués : tu peux relancer l'import pour ajouter les nouveaux.</p>
+     </div>
+     <div id="imp-m-tag" hidden>
+       <div class="field"><label for="imp-tag">Tag GHL</label><select id="imp-tag"><option>Chargement…</option></select></div>
+       <div class="field"><label for="imp-name">Nom de la liste</label><input id="imp-name" placeholder="Chauffagistes Tours"></div>
+     </div>`,
     async () => {
+      if (mode === "pipeline") {
+        const pipelineId = $("#imp-pipe").value; if (!pipelineId) { toast("Choisis un pipeline"); return false; }
+        const r = await api("/leads/import-ghl-pipeline", { method: "POST", body: JSON.stringify({ pipelineId }) });
+        importDone(r);
+        if (r.added) setTimeout(() => toast(`${r.added} lead${r.added > 1 ? "s" : ""} ajouté${r.added > 1 ? "s" : ""} à ton pipeline, dans la liste « ${r.list} »`), 2500);
+        return;
+      }
       const tag = $("#imp-tag").value; if (!tag) { toast("Choisis un tag"); return false; }
       importDone(await api("/leads/import-ghl", { method: "POST", body: JSON.stringify({ tag, listName: $("#imp-name").value.trim() || tag }) }));
     });
-  try {
-    const { tags } = await api("/ghl/tags");
+  $$("#imp-mode button").forEach((b) => (b.onclick = () => {
+    mode = b.dataset.m; $$("#imp-mode button").forEach((x) => x.classList.toggle("on", x === b));
+    $("#imp-m-pipeline").hidden = mode !== "pipeline"; $("#imp-m-tag").hidden = mode !== "tag";
+  }));
+  api("/ghl/pipelines").then(({ pipelines }) => {
+    const best = pipelines.find((p) => /cold/i.test(p.name));
+    $("#imp-pipe").innerHTML = `<option value="">Choisis un pipeline</option>` + pipelines.map((p) => `<option value="${esc(p.id)}" ${best && best.id === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  }).catch((e) => { $("#imp-pipe").innerHTML = `<option value="">${esc(e.message)}</option>`; });
+  api("/ghl/tags").then(({ tags }) => {
     $("#imp-tag").innerHTML = `<option value="">Choisis un tag</option>` + tags.map((t) => `<option>${esc(t)}</option>`).join("");
-  } catch (e) { $("#imp-tag").innerHTML = `<option value="">${esc(e.message)}</option>`; }
+  }).catch((e) => { $("#imp-tag").innerHTML = `<option value="">${esc(e.message)}</option>`; });
 };
 
 function parseCSV(text) {

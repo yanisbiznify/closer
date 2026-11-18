@@ -342,6 +342,74 @@ api.post("/leads/import-ghl", async (req, res) => {
   }
 });
 
+// Étape GHL → étape CLOSER PRO, d'après le nom de l'étape et le statut de l'opportunité
+function mapGhlStage(stageName, status) {
+  if (status === "won") return "gagne";
+  if (status === "lost" || status === "abandoned") return "perdu";
+  const n = String(stageName || "").toLowerCase();
+  if (/clos(ed|ing)? ?(won)?|won|gagn|sign|client actif|client closed/.test(n) && !/ready to close/.test(n)) return "gagne";
+  if (/\blos[et]\b|perdu|pas int|not interested|résili/.test(n)) return "perdu";
+  if (/zoom|booked|rdv|rendez|meeting|ready to close|no.?show|cancel|resched|call finished|démo|demo/.test(n)) return "rdv";
+  if (/nurture|follow|rappel|answer|relance|callback/.test(n)) return "rappel";
+  if (/3x|x3|text 3|3e|troisi/.test(n)) return "tentative3";
+  if (/2x|x2|text 2|2e|deuxi/.test(n)) return "tentative2";
+  if (/1x|x1|text 1|1re|premi|no contact/.test(n)) return "tentative1";
+  return "nouveau";
+}
+const STAGE_TO_STATUS = { nouveau: "a_appeler", tentative1: "a_appeler", tentative2: "a_appeler", tentative3: "a_appeler", rappel: "rappel", rdv: "rdv", gagne: "rdv", perdu: "pas_interesse" };
+const STAGE_ATTEMPTS = { tentative1: 1, tentative2: 2, tentative3: 3 };
+
+api.get("/ghl/pipelines", async (req, res) => {
+  try { res.json({ pipelines: await ghl.listPipelines() }); }
+  catch (e) { res.status(502).json({ error: e.status === 401 || e.status === 403 ? "Ta clé GHL n'a pas accès aux opportunités : ajoute les droits « opportunities.readonly » à ton intégration privée dans GHL." : e.message }); }
+});
+
+api.post("/leads/import-ghl-pipeline", async (req, res) => {
+  const { pipelineId } = req.body || {};
+  if (!pipelineId) return res.status(400).json({ error: "Choisis un pipeline GHL" });
+  try {
+    const pipes = await ghl.listPipelines();
+    const pipe = pipes.find((p) => p.id === pipelineId);
+    if (!pipe) return res.status(404).json({ error: "Pipeline introuvable" });
+    const stageName = Object.fromEntries(pipe.stages.map((s) => [s.id, s.name]));
+    const opps = await ghl.opportunitiesByPipeline(pipelineId);
+    // une seule liste par pipeline : un nouvel import complète la même liste
+    let li = (await q(`SELECT id FROM lists WHERE source='ghl' AND source_ref=$1 LIMIT 1`, ["pipeline:" + pipelineId])).rows[0];
+    if (!li) li = (await q(`INSERT INTO lists (name, source, source_ref) VALUES ($1,'ghl',$2) RETURNING id`, [`GHL · ${pipe.name}`.slice(0, 120), "pipeline:" + pipelineId])).rows[0];
+    let added = 0, dup = 0, invalid = 0;
+    const byStage = {};
+    for (const o of opps) {
+      const c = o.contact || {};
+      let phone = tw.normalizePhone(c.phone);
+      let full = null;
+      if (!phone && o.contactId) { try { full = await ghl.getContact(o.contactId); phone = tw.normalizePhone(full && full.phone); } catch {} }
+      if (!phone) { invalid++; continue; }
+      // déjà dans CLOSER PRO (même numéro, n'importe quelle liste) : on garde ce que tu y as fait
+      const exists = (await q(`SELECT id, ghl_contact_id FROM leads WHERE phone=$1 LIMIT 1`, [phone])).rows[0];
+      if (exists) {
+        if (!exists.ghl_contact_id && o.contactId) await q(`UPDATE leads SET ghl_contact_id=$2 WHERE id=$1`, [exists.id, o.contactId]);
+        dup++; continue;
+      }
+      const f = full || {};
+      const first = clean(f.firstName || null, 80), last = clean(f.lastName || null, 80);
+      const name = [first, last].filter(Boolean).join(" ") || clean(c.name) || clean(o.name);
+      const company = c.companyName ? clean(String(c.companyName).split(/\s[|·]\s|·|\s\|/)[0].trim()) : null;
+      const stage = mapGhlStage(stageName[o.pipelineStageId], o.status);
+      const notes = [`Importé du pipeline GHL « ${pipe.name} »`, stageName[o.pipelineStageId] ? `Étape GHL : ${stageName[o.pipelineStageId]}` : null, c.tags && c.tags.length ? `Tags : ${c.tags.join(", ")}` : null].filter(Boolean).join("\n");
+      const r = await q(
+        `INSERT INTO leads (list_id, first_name, last_name, name, company, phone, email, value, source, ghl_contact_id, notes, stage, stage_at, status, attempts)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'ghl',$9,$10,$11,COALESCE($12::timestamptz, now()),$13,$14) ON CONFLICT (list_id, phone) DO NOTHING RETURNING id`,
+        [li.id, first, last, name, company, phone, clean(c.email || f.email || null), Number(o.monetaryValue) || 0, o.contactId || null, notes,
+         stage, o.lastStageChangeAt || null, STAGE_TO_STATUS[stage], STAGE_ATTEMPTS[stage] || 0]
+      );
+      if (r.rows.length) { added++; byStage[stage] = (byStage[stage] || 0) + 1; } else dup++;
+    }
+    res.json({ listId: li.id, list: `GHL · ${pipe.name}`, total: opps.length, added, dup, invalid, byStage });
+  } catch (e) {
+    res.status(502).json({ error: e.status === 401 || e.status === 403 ? "Ta clé GHL n'a pas accès aux opportunités : ajoute les droits « opportunities.readonly » à ton intégration privée dans GHL." : e.message });
+  }
+});
+
 /* ---------- Bibliothèque d'objections (tirée des analyses) ---------- */
 api.get("/objections", async (req, res) => {
   const r = await q(

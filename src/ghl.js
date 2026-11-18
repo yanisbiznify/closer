@@ -118,4 +118,32 @@ async function logOutcome(contactId, { title, body, tag }) {
   return res;
 }
 
-module.exports = { listCalls, getRecording, getContactName, listTags, contactsByTag, logOutcome };
+// Pipelines (opportunités) du sous-compte
+async function listPipelines() {
+  const d = await ghl(`/opportunities/pipelines?locationId=${encodeURIComponent(config.ghlLocationId)}`, { version: "2021-07-28" });
+  return (d.pipelines || []).map((p) => ({ id: p.id, name: p.name, stages: (p.stages || []).map((s) => ({ id: s.id, name: s.name, position: s.position })) }));
+}
+
+// Toutes les opportunités d'un pipeline, avec le contact associé
+async function opportunitiesByPipeline(pipelineId, max = 5000) {
+  const out = [];
+  let startAfter = null, startAfterId = null;
+  for (let i = 0; i < 60 && out.length < max; i++) {
+    const qs = new URLSearchParams({ location_id: config.ghlLocationId, pipeline_id: pipelineId, limit: "100" });
+    if (startAfterId) { qs.set("startAfter", String(startAfter)); qs.set("startAfterId", startAfterId); }
+    const d = await ghl(`/opportunities/search?${qs}`, { version: "2021-07-28" });
+    const list = d.opportunities || [];
+    out.push(...list);
+    const meta = d.meta || {};
+    if (list.length < 100 || !meta.startAfterId) break;
+    startAfter = meta.startAfter; startAfterId = meta.startAfterId;
+  }
+  return out;
+}
+
+async function getContact(id) {
+  const d = await ghl(`/contacts/${id}`, { version: "2021-07-28" });
+  return d.contact || null;
+}
+
+module.exports = { listCalls, getRecording, getContactName, listTags, contactsByTag, logOutcome, listPipelines, opportunitiesByPipeline, getContact };
