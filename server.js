@@ -13,6 +13,7 @@ const revenue = require("./src/revenue");
 const inbox = require("./src/inbox");
 const automations = require("./src/automations");
 const booking = require("./src/booking");
+const mailer = require("./src/mailer");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -243,11 +244,13 @@ api.use(revenue.api);
 api.use(inbox.api);
 api.use(automations.api);
 api.use(booking.api);
+api.use(mailer.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
 app.use(billing.publicRoutes(authed));
 app.use(booking.publicRoutes());
+app.use(mailer.publicRoutes);
 
 /* ---------- Front ---------- */
 app.use("/vendor/xlsx", express.static(path.join(__dirname, "node_modules/xlsx/dist"), { maxAge: "7d" }));
@@ -284,6 +287,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   worker.start();
   inbox.start();
   automations.start();
+  mailer.start();
   if (stripe.enabled()) stripe.ensureWebhook().then(() => console.log(`Stripe prêt (${stripe.mode()})`)).catch((e) => console.warn("Stripe :", e.message));
   if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {

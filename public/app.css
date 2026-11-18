@@ -753,3 +753,12 @@ audio{width:100%;height:36px;margin:4px 0 18px;filter:invert(.92) hue-rotate(180
 @media (max-width:760px){.bce-grid{grid-template-columns:1fr 1fr}}
 .bce-day>label.au-opt{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:500;color:var(--text)}
 .au-opt input[type=checkbox],.bk-chk input[type=checkbox]{width:16px;height:16px;flex:none;margin:0}
+
+/* ---------- Notifications email ---------- */
+.nt-panel{margin-top:20px}
+.nt-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.nt-h{font-size:14px;margin:0 0 12px;color:var(--text)}
+.nt-hour{margin-top:14px}
+.nt-hour select{width:auto}
+.nt-tests{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft)}
+@media (max-width:900px){.nt-grid{grid-template-columns:1fr;gap:10px}}

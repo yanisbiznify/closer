@@ -6,6 +6,7 @@ const express = require("express");
 const { q } = require("./db");
 const stripe = require("./stripe");
 const tw = require("./twilio");
+const mailer = require("./mailer");
 
 const DEFAULT_BILLING = {
   company: "Biznify Technologies Ltd",
@@ -89,6 +90,7 @@ async function markPaid(id, via, sessionId) {
     [id, via, sessionId || null]
   );
   const inv = r.rows[0];
+  if (inv) mailer.fire(() => mailer.invoicePaid(inv));
   if (inv && inv.lead_id) {
     await q(`UPDATE leads SET stage='gagne', stage_at=now() WHERE id=$1 AND stage IS DISTINCT FROM 'gagne'`, [inv.lead_id]).catch(() => {});
   }
@@ -232,6 +234,17 @@ api.post("/invoices/:id/payment-link", async (req, res) => {
     await q(`UPDATE invoices SET payment_link_id=$2, payment_link_url=$3 WHERE id=$1`, [inv.id, link.id, link.url]);
     res.json({ url: link.url });
   } catch (e) { res.status(e.code === "stripe_off" ? 409 : 502).json({ error: e.message }); }
+});
+
+// Envoi de la facture par email (aux couleurs de Biznify, bouton « Voir et payer »)
+api.post("/invoices/:id/send", async (req, res) => {
+  const inv = (await q(`SELECT * FROM invoices WHERE id=$1`, [req.params.id])).rows[0];
+  if (!inv) return res.status(404).json({ error: "Facture introuvable" });
+  try {
+    await mailer.invoiceSend(inv, { message: req.body && req.body.message ? String(req.body.message).slice(0, 3000) : null });
+    await q(`UPDATE invoices SET notes=notes WHERE id=$1`, [inv.id]);
+    res.json({ ok: true, to: inv.client.email });
+  } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 api.post("/invoices/:id/status", async (req, res) => {

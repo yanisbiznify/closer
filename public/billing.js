@@ -98,7 +98,7 @@ function openInvoice(id) {
       <div class="bl-url"><input readonly value="${esc(i.url)}" aria-label="Lien de la facture"><button class="btn ghost" id="bi-copy">Copier</button></div>
       <div class="bl-acts">
         <a class="btn primary" href="${esc(i.url)}" target="_blank" rel="noopener">Voir la facture</a>
-        ${mail ? `<a class="btn ghost" href="${mail}">Envoyer par email</a>` : ""}
+        ${c.email ? `<button class="btn ghost" id="bi-send">Envoyer par email</button>` : ""}
         ${open ? `<button class="btn ghost" id="bi-stripe">${i.payment_link_url ? "Copier le lien Stripe" : "Créer un lien Stripe direct"}</button>` : ""}
       </div>
       <div class="bl-acts sec">
@@ -111,6 +111,12 @@ function openInvoice(id) {
   });
   const on = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
   on("#bi-copy", () => copy(i.url));
+  on("#bi-send", async (e) => {
+    const b = e.currentTarget; b.disabled = true; b.innerHTML = `<span class="spin"></span>Envoi`;
+    try { await api(`/invoices/${i.id}/send`, { method: "POST", body: "{}" }); toast(`Facture envoyée à ${c.email}`); b.textContent = "Renvoyer par email"; }
+    catch (err) { toast(err.message); if (mail) { b.outerHTML = `<a class="btn ghost" href="${mail}">Envoyer depuis ma messagerie</a>`; return; } b.textContent = "Envoyer par email"; }
+    b.disabled = false;
+  });
   on("#bi-stripe", async (e) => {
     const b = e.currentTarget; b.disabled = true;
     try { const r = await api(`/invoices/${i.id}/payment-link`, { method: "POST" }); i.payment_link_url = r.url; copy(r.url, "Lien Stripe copié"); b.textContent = "Copier le lien Stripe"; }

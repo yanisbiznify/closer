@@ -4,6 +4,7 @@ const config = require("./config");
 const { q, getSettings } = require("./db");
 const tw = require("./twilio");
 const google = require("./google");
+const mailer = require("./mailer");
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const smsFrom = () => config.twilioSmsFrom || config.twilioCallerId || null;
@@ -93,7 +94,7 @@ async function sendSms(lead, body) {
   return r.rows[0];
 }
 
-async function sendEmail(lead, subject, body) {
+async function sendEmail(lead, subject, body, { html } = {}) {
   const st = await emailStatus();
   if (!st.ready) throw new Error(st.reason);
   if (!lead.email) throw new Error("Ce prospect n'a pas d'email");
@@ -111,7 +112,7 @@ async function sendEmail(lead, subject, body) {
     const r0 = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${config.resendApiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: `${fromName} <${config.emailFrom}>`, to: [lead.email], subject, text: body, reply_to: config.emailFrom, headers }),
+      body: JSON.stringify({ from: `${fromName} <${config.emailFrom}>`, to: [lead.email], subject, text: body, ...(html ? { html } : {}), reply_to: config.emailFrom, headers }),
     });
     const j = await r0.json().catch(() => ({}));
     if (!r0.ok) throw new Error(`Resend : ${j.message || j.error || r0.status}`);
@@ -121,16 +122,19 @@ async function sendEmail(lead, subject, body) {
     return r.rows[0];
   }
 
+  const bnd = "closer_" + Date.now().toString(36);
   const headers = [
     `From: ${encWord(fromName)} <${st.from}>`,
     `To: ${lead.email}`,
     `Subject: ${encWord(subject)}`,
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: base64",
+    ...(html ? [`Content-Type: multipart/alternative; boundary="${bnd}"`] : ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64"]),
   ];
   if (lastIn && lastIn.mid_header) headers.push(`In-Reply-To: ${lastIn.mid_header}`, `References: ${lastIn.mid_header}`);
-  const raw = headers.join("\r\n") + "\r\n\r\n" + wrap76(b64(body.replace(/\r?\n/g, "\r\n")));
+  const textPart = wrap76(b64(body.replace(/\r?\n/g, "\r\n")));
+  const raw = headers.join("\r\n") + "\r\n\r\n" + (html
+    ? `--${bnd}\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${textPart}\r\n--${bnd}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(b64(html))}\r\n--${bnd}--`
+    : textPart);
   const sent = await google.gmail("/messages/send", { method: "POST", body: { raw: Buffer.from(raw).toString("base64url"), ...(last && last.thread_id ? { threadId: last.thread_id } : {}) } });
   let mid = null;
   try { const full = await google.gmail(`/messages/${sent.id}`, { query: { format: "metadata", metadataHeaders: "Message-ID" } }); mid = header(full.payload, "Message-ID"); } catch {}
@@ -187,7 +191,12 @@ async function syncEmail() {
              VALUES ($1,'email','in',$2,$3,$4,'received',$5,$6,$7, to_timestamp($8::double precision / 1000)) ON CONFLICT (external_id) DO NOTHING RETURNING id`,
             [lead.id, from, header(m.payload, "Subject"), textOf(m.payload) || m.snippet || "", m.id, m.threadId, header(m.payload, "Message-ID"), Number(m.internalDate) || Date.now()]
           );
-          if (ins.rows[0]) { added++; await q(`UPDATE leads SET updated_at=now() WHERE id=$1`, [lead.id]); }
+          if (ins.rows[0]) {
+            added++; await q(`UPDATE leads SET updated_at=now() WHERE id=$1`, [lead.id]);
+            const full = (await q(`SELECT * FROM leads WHERE id=$1`, [lead.id])).rows[0];
+            const txt = textOf(m.payload) || m.snippet || "";
+            if (full) mailer.fire(() => mailer.replyReceived(full, "email", txt));
+          }
         }
       }
       pageToken = list.nextPageToken;
@@ -224,6 +233,7 @@ hooks.post("/sms", wrap(async (req, res) => {
   await q(`INSERT INTO messages (lead_id, channel, direction, address, body, status, external_id) VALUES ($1,'sms','in',$2,$3,'received',$4) ON CONFLICT (external_id) DO NOTHING`,
     [leadId, from, body, req.body.MessageSid || null]);
   await q(`UPDATE leads SET updated_at=now() WHERE id=$1`, [leadId]);
+  { const lead = (await q(`SELECT * FROM leads WHERE id=$1`, [leadId])).rows[0]; if (lead) mailer.fire(() => mailer.replyReceived(lead, "sms", body)); }
   res.send("<Response/>");
 }));
 hooks.post("/sms-status", wrap(async (req, res) => {

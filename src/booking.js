@@ -6,6 +6,7 @@ const path = require("path");
 const { q } = require("./db");
 const google = require("./google");
 const tw = require("./twilio");
+const mailer = require("./mailer");
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const DAYS = ["1", "2", "3", "4", "5", "6", "7"]; // lundi … dimanche (ISO)
@@ -165,6 +166,8 @@ async function book(cal, b, ip) {
   await q(`UPDATE leads SET status='rdv', stage=CASE WHEN stage='gagne' THEN stage ELSE 'rdv' END, stage_at=now(), updated_at=now(),
              notes = concat_ws(E'\\n', NULLIF(notes,''), $2::text) WHERE id=$1`,
     [lead.id, `[${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}] RDV réservé en ligne (${cal.name}) : ${fmtWhen(start)}${note ? ` — « ${note} »` : ""}`]);
+  const fresh = (await q(`SELECT * FROM leads WHERE id=$1`, [lead.id])).rows[0] || lead;
+  mailer.fire(() => mailer.bookingCreated(a, fresh, cal));
   return { appointment: a, lead, meet: ev && ev.meet };
 }
 
@@ -431,6 +434,9 @@ function publicRoutes() {
       if (a.google_event_id) await google.deleteEvent(a.google_event_id, true).catch((e) => console.warn("Annulation Google :", e.message));
       await q(`UPDATE appointments SET status='annule' WHERE id=$1`, [a.id]);
       await stopRunsFor(a.id);
+      { const cal = a.calendar_id ? (await q(`SELECT * FROM booking_calendars WHERE id=$1`, [a.calendar_id])).rows[0] : null;
+        const lead = a.lead_id ? (await q(`SELECT * FROM leads WHERE id=$1`, [a.lead_id])).rows[0] : null;
+        mailer.fire(() => mailer.bookingChanged(a, lead, cal, "cancelled")); }
       if (a.lead_id) await q(`UPDATE leads SET stage=CASE WHEN stage='rdv' THEN 'rappel' ELSE stage END, status=CASE WHEN status='rdv' THEN 'rappel' ELSE status END, stage_at=now(), updated_at=now(),
                                 notes = concat_ws(E'\\n', NULLIF(notes,''), $2::text) WHERE id=$1`, [a.lead_id, `[${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}] RDV annulé par le prospect.`]);
     }
@@ -455,6 +461,8 @@ function publicRoutes() {
       [a.lead_id, a.google_event_id, a.title, start, end, a.meet_url, a.attendee_email, a.calendar_id, crypto.randomBytes(18).toString("base64url"), a.notes])).rows[0];
     await q(`UPDATE appointments SET google_event_id=NULL, manage_token=NULL WHERE id=$1`, [a.id]);
     if (a.lead_id) await q(`UPDATE leads SET notes = concat_ws(E'\\n', NULLIF(notes,''), $2::text), updated_at=now() WHERE id=$1`, [a.lead_id, `[${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}] RDV déplacé par le prospect au ${fmtWhen(start)}.`]);
+    { const lead = a.lead_id ? (await q(`SELECT * FROM leads WHERE id=$1`, [a.lead_id])).rows[0] : null;
+      mailer.fire(() => mailer.bookingChanged({ ...a, meet_url: n.meet_url }, lead, cal, "moved", start)); }
     res.json({ start: start.toISOString(), meet: n.meet_url, manage: manageUrl(n) });
   }));
   r.get("/r/:slug", wrap(async (req, res, next) => {

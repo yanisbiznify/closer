@@ -3,6 +3,7 @@ const express = require("express");
 const config = require("./config");
 const { q, getSettings } = require("./db");
 const inbox = require("./inbox");
+const mailer = require("./mailer");
 const tw = require("./twilio");
 const { STAGES, OUTCOMES } = require("./dialer");
 
@@ -242,7 +243,8 @@ async function advance(run) {
         }
         case "send_email": {
           const subject = await render(st.subject, lead, run), body = await render(st.body, lead, run);
-          await inbox.sendEmail(lead, subject || "Biznify", body);
+          const html = await mailer.layout({ preheader: body.split("\n").find((x) => x.trim()) || "", text: body });
+          await inbox.sendEmail(lead, subject || "Biznify", body, { html });
           log(run, { step: run.step, type: st.type, ok: true, info: subject });
           break;
         }

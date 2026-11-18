@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=13">
+<link rel="stylesheet" href="/app.css?v=14">
 </head>
 <body>
 <div class="shell">
@@ -375,6 +375,10 @@
             </div>
           </div>
         </div>
+        <div class="panel nt-panel" id="nt-panel">
+          <div class="panel-h"><h2>Notifications email</h2><span class="sub" id="nt-status"></span></div>
+          <div class="panel-b" id="nt-body"><div class="skeleton" style="width:40%"></div></div>
+        </div>
       </section>
     </div>
   </div>
@@ -419,16 +423,17 @@
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/vendor/twilio/twilio.min.js" defer></script>
-<script src="/app.js?v=12"></script>
+<script src="/app.js?v=13"></script>
 <script src="/vendor/xlsx/xlsx.full.min.js" defer></script>
 <script src="/phone.js?v=7"></script>
-<script src="/dialer.js?v=13"></script>
+<script src="/dialer.js?v=14"></script>
 <script src="/crm.js?v=10"></script>
 <script src="/calendar.js?v=9"></script>
-<script src="/billing.js?v=2"></script>
+<script src="/billing.js?v=3"></script>
 <script src="/revenue.js?v=1"></script>
 <script src="/inbox.js?v=2"></script>
 <script src="/automations.js?v=2"></script>
 <script src="/booking-admin.js?v=1"></script>
+<script src="/notifications.js?v=1"></script>
 </body>
 </html>
