@@ -51,9 +51,15 @@ function renderBilling() {
   $("#bl-k-pending").textContent = euro(d.totals.pending);
   $("#bl-k-late").textContent = euro(d.totals.overdue);
   $("#bl-k-count").textContent = d.totals.count;
+  window.BL_STRIPE = d.stripe;
+  const sb = $("#bl-stripe");
+  sb.className = d.stripe.enabled ? "btn ghost" : "btn ghost";
+  sb.innerHTML = d.stripe.enabled ? `<span class="dot-ok"></span>Stripe connecté` : "Connecter Stripe";
+  sb.onclick = openStripeConnect;
   $("#bl-callout").innerHTML = !d.stripe.enabled
-    ? `<div class="callout"><div class="grow"><b>Connecte Stripe pour encaisser en ligne.</b><p>Ajoute ta clé secrète Stripe dans Railway, variable <code>STRIPE_SECRET_KEY</code>. Le bouton « Payer » des factures et les liens de paiement s'activent tout seuls au redémarrage.</p></div></div>`
-    : d.stripe.mode === "test" ? `<div class="callout"><div class="grow"><b>Stripe est en mode test.</b><p>Les paiements sont fictifs (carte 4242 4242 4242 4242). Remplace la clé par ta clé « live » dans Railway pour encaisser pour de vrai.</p></div></div>` : "";
+    ? `<div class="callout"><div class="grow"><b>Connecte Stripe pour encaisser en ligne.</b><p>Une fois connecté, le bouton « Payer » de tes factures et tes liens de paiement fonctionnent tout de suite.</p></div><button class="btn primary" id="bl-stripe-cta">Connecter Stripe</button></div>`
+    : d.stripe.mode === "test" ? `<div class="callout"><div class="grow"><b>Stripe est en mode test.</b><p>Les paiements sont fictifs (carte 4242 4242 4242 4242). Reconnecte Stripe avec ta clé « live » pour encaisser pour de vrai.</p></div><button class="btn ghost" id="bl-stripe-cta">Passer en live</button></div>` : "";
+  const cta = $("#bl-stripe-cta"); if (cta) cta.onclick = openStripeConnect;
 
   const inv = d.invoices;
   $("#bl-list").innerHTML = inv.length
@@ -282,3 +288,39 @@ $("#bl-settings").onclick = async () => {
     const rd = new FileReader(); rd.onload = () => { logo = rd.result; prev(); }; rd.readAsDataURL(file);
   };
 };
+
+/* ---------- Connexion Stripe ---------- */
+function openStripeConnect(forceNew) {
+  const st = forceNew === true ? { enabled: false } : (window.BL_STRIPE || {});
+  const fromRailway = st.source === "railway";
+  if (st.enabled) {
+    bModal({ title: "Stripe", cancel: "Fermer", width: 520, body: `
+      <div class="stc-ok"><span class="dot-ok"></span><div><b>${esc((st.account && st.account.name) || "Compte Stripe")} est connecté</b><p class="small muted" style="margin:2px 0 0">Mode ${st.mode === "live" ? "réel (live)" : "test"}${st.account && st.account.id ? ` · ${esc(st.account.id)}` : ""}${fromRailway ? " · clé dans Railway" : ""}</p></div></div>
+      ${st.account && st.account.charges === false ? `<div class="callout" style="margin-top:12px"><div class="grow"><b>Ton compte Stripe n'accepte pas encore de paiements.</b><p>Termine l'activation du compte dans Stripe (identité, IBAN).</p></div></div>` : ""}
+      <p class="small muted" style="margin:14px 0 0">Les paiements arrivent dans l'app tout seuls : la facture passe en « Payée » et le prospect en « Client signé ».</p>
+      ${fromRailway ? "" : `<div style="display:flex;gap:8px;margin-top:16px"><button class="btn ghost" id="stc-change">Changer de clé</button><button class="btn quiet" id="stc-off">Déconnecter</button></div>`}` });
+    const ch = $("#stc-change"); if (ch) ch.onclick = () => openStripeConnect(true);
+    const off = $("#stc-off"); if (off) off.onclick = async () => {
+      if (!(await confirmBox("Déconnecter Stripe ? Le bouton « Payer » de tes factures ne marchera plus."))) return;
+      try { await api("/stripe/disconnect", { method: "POST", body: "{}" }); toast("Stripe déconnecté"); $("#bm").classList.remove("on"); loadBilling(); } catch (e) { toast(e.message); }
+    };
+    return;
+  }
+  bModal({ title: "Connecter Stripe", sub: "2 étapes, une seule fois.", go: "Connecter Stripe", width: 560, body: `
+    <ol class="stc-steps">
+      <li><b>Crée une clé pour Biznify dans Stripe</b><br><a class="btn primary" style="margin-top:8px" href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Ouvrir mes clés Stripe</a>
+        <p class="small muted" style="margin:8px 0 0">Clique sur « Créer une clé restreinte », choisis « Fournir cette clé à un autre site web », nom : <b>Biznify</b>, site : <b>admin.biznify.pro</b>, puis crée la clé avec toutes les autorisations. Ta clé secrète (sk_live_…) marche aussi.</p></li>
+      <li><b>Colle la clé ici</b>
+        <div class="field" style="margin:8px 0 0"><input id="stc-key" type="password" autocomplete="off" spellcheck="false" placeholder="rk_live_… ou sk_live_…" aria-label="Clé Stripe"></div>
+        <p class="small muted" style="margin:6px 0 0">Elle est vérifiée, puis enregistrée chiffrée. Biznify crée tout seul la connexion qui marque tes factures comme payées.</p></li>
+    </ol>
+    <div id="stc-err" class="small c-bad" role="alert" style="min-height:18px;margin-top:6px"></div>`,
+    onGo: async () => {
+      const key = $("#stc-key").value.trim();
+      if (!key) { $("#stc-err").textContent = "Colle ta clé Stripe"; return false; }
+      try {
+        const r = await api("/stripe/connect", { method: "POST", body: JSON.stringify({ key }) });
+        window.BL_STRIPE = r.stripe; toast(`Stripe connecté${r.stripe.account ? " : " + r.stripe.account.name : ""}`); loadBilling();
+      } catch (e) { $("#stc-err").textContent = e.message; return false; }
+    } });
+}

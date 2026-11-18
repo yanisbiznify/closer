@@ -769,3 +769,10 @@ audio{width:100%;height:36px;margin:4px 0 18px;filter:invert(.92) hue-rotate(180
 .side{background:#fff}
 .panel,.card{box-shadow:0 1px 2px rgba(11,18,32,.04)}
 input,select,textarea{color-scheme:light}
+
+/* ---------- Connexion Stripe ---------- */
+.dot-ok{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-bg);margin-right:8px;flex:none}
+.stc-ok{display:flex;align-items:flex-start;gap:4px}
+.stc-ok .dot-ok{margin-top:6px}
+.stc-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:18px}
+.stc-steps li{padding-left:4px}

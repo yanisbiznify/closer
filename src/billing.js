@@ -133,7 +133,7 @@ const api = safeRouter();
 
 api.get("/billing/settings", async (req, res) => {
   const b = await getBilling();
-  res.json({ ...b, stripe: { enabled: stripe.enabled(), mode: stripe.enabled() ? stripe.mode() : null }, defaultLogo: DEFAULT_LOGO });
+  res.json({ ...b, stripe: stripe.status(), defaultLogo: DEFAULT_LOGO });
 });
 api.put("/billing/settings", async (req, res) => {
   try { res.json(await saveBilling(req.body || {})); } catch (e) { res.status(400).json({ error: e.message }); }
@@ -153,7 +153,7 @@ api.get("/invoices", async (req, res) => {
       overdue: sum((x) => x.status === "emise" && x.due_date && new Date(x.due_date) < new Date(new Date().toDateString())),
       count: inv.filter((x) => x.status !== "annulee").length,
     },
-    stripe: { enabled: stripe.enabled(), mode: stripe.enabled() ? stripe.mode() : null },
+    stripe: stripe.status(),
   });
 });
 
@@ -238,6 +238,16 @@ api.post("/invoices/:id/payment-link", async (req, res) => {
     await q(`UPDATE invoices SET payment_link_id=$2, payment_link_url=$3 WHERE id=$1`, [inv.id, link.id, link.url]);
     res.json({ url: link.url });
   } catch (e) { res.status(e.code === "stripe_off" ? 409 : 502).json({ error: e.message }); }
+});
+
+// Connexion Stripe depuis l'app (sans passer par Railway)
+api.post("/stripe/connect", async (req, res) => {
+  try { res.json({ stripe: await stripe.connect(req.body && req.body.key) }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+api.post("/stripe/disconnect", async (req, res) => {
+  if (stripe.status().source === "railway") return res.status(400).json({ error: "Ta clé est dans Railway (STRIPE_SECRET_KEY) : retire-la là-bas" });
+  await stripe.disconnect(); res.json({ stripe: stripe.status() });
 });
 
 // Envoi de la facture par email (aux couleurs de Biznify, bouton « Voir et payer »)

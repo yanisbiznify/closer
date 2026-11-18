@@ -303,7 +303,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   inbox.start();
   automations.start();
   mailer.start();
-  if (stripe.enabled()) stripe.ensureWebhook().then(() => console.log(`Stripe prêt (${stripe.mode()})`)).catch((e) => console.warn("Stripe :", e.message));
+  stripe.load().then(() => stripe.enabled() && stripe.ensureWebhook()).then(() => console.log(`Stripe prêt (${stripe.mode()})`)).catch((e) => console.warn("Stripe :", e.message));
   if (tw.enabled()) tw.ensureSetup().then(() => console.log("Dialer Twilio prêt")).catch((e) => console.warn("Dialer Twilio :", e.message));
 })().catch((e) => {
   console.error("Démarrage impossible :", e);

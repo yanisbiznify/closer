@@ -5,8 +5,27 @@ const { q } = require("./db");
 const tw = require("./twilio");
 
 const API = "https://api.stripe.com/v1";
-const enabled = () => !!config.stripeSecretKey;
-const mode = () => (String(config.stripeSecretKey || "").startsWith("sk_live") || String(config.stripeSecretKey || "").startsWith("rk_live") ? "live" : "test");
+// Clé : variable Railway STRIPE_SECRET_KEY, sinon celle connectée depuis l'app (chiffrée en base)
+let dbKey = null;
+let account = null;
+const secretKey = () => config.stripeSecretKey || dbKey;
+const enabled = () => !!secretKey();
+const mode = () => (/^(sk|rk)_live_/.test(String(secretKey() || "")) ? "live" : "test");
+const source = () => (config.stripeSecretKey ? "railway" : dbKey ? "app" : null);
+
+const cipherKey = () => crypto.createHash("sha256").update("stripe-key:" + (config.sessionSecret || "closer")).digest();
+function seal(text) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv("aes-256-gcm", cipherKey(), iv);
+  const enc = Buffer.concat([c.update(text, "utf8"), c.final()]);
+  return [iv, c.getAuthTag(), enc].map((b) => b.toString("base64")).join(".");
+}
+function unseal(s) {
+  const [iv, tag, enc] = String(s).split(".").map((x) => Buffer.from(x, "base64"));
+  const d = crypto.createDecipheriv("aes-256-gcm", cipherKey(), iv);
+  d.setAuthTag(tag);
+  return Buffer.concat([d.update(enc), d.final()]).toString("utf8");
+}
 
 // Encodage application/x-www-form-urlencoded avec objets et tableaux imbriqués (format Stripe)
 function encode(obj, prefix, out = []) {
@@ -21,12 +40,15 @@ function encode(obj, prefix, out = []) {
 }
 
 async function call(method, path, params) {
-  if (!enabled()) { const e = new Error("Ajoute STRIPE_SECRET_KEY dans Railway pour activer les paiements."); e.code = "stripe_off"; throw e; }
+  return callWith(secretKey(), method, path, params);
+}
+async function callWith(key, method, path, params) {
+  if (!key) { const e = new Error("Connecte Stripe dans Facturation pour activer les paiements."); e.code = "stripe_off"; throw e; }
   const body = params && method !== "GET" ? encode(params).join("&") : undefined;
   const url = API + path + (params && method === "GET" ? "?" + encode(params).join("&") : "");
   const r = await fetch(url, {
     method,
-    headers: { Authorization: `Bearer ${config.stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2024-06-20" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded", "Stripe-Version": "2024-06-20" },
     body,
   });
   const j = await r.json().catch(() => ({}));
@@ -83,4 +105,44 @@ async function verify(raw, header) {
   return sigs.some((s) => s.length === expected.length && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(expected)));
 }
 
-module.exports = { enabled, mode, call, ensureWebhook, verify, getState };
+// Charge la clé connectée depuis l'app au démarrage
+async function load() {
+  const st = await getState();
+  dbKey = null; account = st.account || null;
+  if (st.sealedKey) { try { dbKey = unseal(st.sealedKey); } catch { console.warn("Stripe : clé enregistrée illisible (SESSION_SECRET changé ?)"); } }
+}
+
+// Connexion depuis l'app : vérifie la clé, l'enregistre chiffrée, crée le webhook
+async function connect(rawKey) {
+  const key = String(rawKey || "").trim();
+  if (!/^(sk|rk)_(live|test)_[A-Za-z0-9]{10,}$/.test(key)) throw new Error("Colle une clé Stripe qui commence par sk_live_ ou rk_live_ (ou _test_ pour essayer)");
+  let acct = null;
+  try {
+    const a = await callWith(key, "GET", "/account");
+    acct = { id: a.id, name: (a.settings && a.settings.dashboard && a.settings.dashboard.display_name) || (a.business_profile && a.business_profile.name) || a.email || a.id, country: a.country, charges: !!a.charges_enabled };
+  } catch (e) {
+    if (/Invalid API Key|No such|expired/i.test(e.message)) throw new Error("Stripe refuse cette clé : vérifie que tu l'as copiée en entier");
+    // clé restreinte sans accès « Account » : on vérifie avec une lecture autorisée
+    await callWith(key, "GET", "/payment_links", { limit: 1 });
+  }
+  for (const [path, label] of [["/webhook_endpoints", "Webhook endpoints"], ["/prices", "Prices"], ["/checkout/sessions", "Checkout Sessions"]]) {
+    try { await callWith(key, "GET", path, { limit: 1 }); }
+    catch (e) { if (/permission|restricted/i.test(e.message)) throw new Error(`Il manque une autorisation à cette clé : ${label} (écriture). Crée-la avec « toutes les autorisations ».`); }
+  }
+  const st = await getState();
+  await setState({ ...st, sealedKey: seal(key), account: acct, connectedAt: new Date().toISOString(), webhookId: null, webhookSecret: null });
+  await load();
+  await ensureWebhook();
+  return status();
+}
+async function disconnect() {
+  const st = await getState();
+  if (st.webhookId && dbKey) await call("DELETE", `/webhook_endpoints/${st.webhookId}`).catch(() => {});
+  await setState({});
+  dbKey = null; account = null;
+}
+function status() {
+  return { enabled: enabled(), mode: enabled() ? mode() : null, source: source(), account };
+}
+
+module.exports = { enabled, mode, call, ensureWebhook, verify, getState, load, connect, disconnect, status };
