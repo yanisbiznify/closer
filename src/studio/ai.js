@@ -57,12 +57,12 @@ Règles :
 Réponds UNIQUEMENT avec le JSON complet du site, sans texte autour ni bloc markdown.`;
 }
 
-async function claude(sys, user, maxTokens = 14000) {
+async function claude(sys, user, maxTokens = 14000, model = config.anthropicModel) {
   if (!config.anthropicApiKey) throw new Error("ANTHROPIC_API_KEY manquant");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": config.anthropicApiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: config.anthropicModel, max_tokens: maxTokens, system: sys, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model, max_tokens: maxTokens, system: sys, messages: [{ role: "user", content: user }] }),
   });
   if (!res.ok) throw new Error(`IA ${res.status} : ${(await res.text().catch(() => "")).slice(0, 200)}`);
   const j = await res.json();
@@ -102,7 +102,7 @@ ${JSON.stringify(base)}
 Informations sur l'entreprise :
 ${brief}
 
-Personnalise entièrement le contenu pour cette entreprise : textes, coordonnées, services, déroulé, FAQ, photos adaptées au métier, options du formulaire. Ajoute ou retire des sections si le métier le justifie. Année en cours : ${new Date().getFullYear()}. Renvoie le JSON complet.`));
+Personnalise entièrement le contenu pour cette entreprise : textes, coordonnées, services, déroulé, FAQ, photos adaptées au métier, options du formulaire. Ajoute ou retire des sections si le métier le justifie. Année en cours : ${new Date().getFullYear()}. Renvoie le JSON complet.`, 14000, config.studioModel));
 }
 
 async function edit(data, instruction, brief, assets) {

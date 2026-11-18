@@ -20,6 +20,8 @@ const config = {
 
   anthropicApiKey: env("ANTHROPIC_API_KEY"),
   anthropicModel: env("ANTHROPIC_MODEL", "claude-sonnet-5-5"),
+  // création des sites (AI Studio) : le modèle au meilleur goût ; les retouches gardent anthropicModel
+  studioModel: env("STUDIO_MODEL", "claude-opus-5-5"),
 
   syncIntervalMin: Number(env("SYNC_INTERVAL_MIN", 10)),
 

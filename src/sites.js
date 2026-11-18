@@ -256,12 +256,12 @@ Direction artistique :
 - Le haut de page dit en une phrase ce que fait l'entreprise, pour qui et où, avec deux actions : appeler et demander un devis.
 - Sections typiques à adapter : accroche, services, pourquoi nous (preuves concrètes fournies), zone d'intervention, déroulé, FAQ, contact. Ne garde que ce qui sert ce métier.`;
 
-async function claude(system, messages, maxTokens = 16000) {
+async function claude(system, messages, maxTokens = 16000, model = config.anthropicModel) {
   if (!config.anthropicApiKey) throw new Error("ANTHROPIC_API_KEY manquant");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": config.anthropicApiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: config.anthropicModel, max_tokens: maxTokens, system, messages }),
+    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
   });
   if (!res.ok) throw new Error(`IA ${res.status} : ${(await res.text().catch(() => "")).slice(0, 200)}`);
   const j = await res.json();
@@ -309,7 +309,7 @@ async function generate(site) {
     await saveVersion(site.id, studioRender.render(data), `Site créé à partir du modèle « ${tpl.name} »`, data);
     return;
   }
-  const text = await claude(DESIGN_RULES, [{ role: "user", content: `Crée le site vitrine complet de cette entreprise.\n\n${briefText(site.brief, assets)}\n\nAnnée en cours : ${new Date().getFullYear()}.` }]);
+  const text = await claude(DESIGN_RULES, [{ role: "user", content: `Crée le site vitrine complet de cette entreprise.\n\n${briefText(site.brief, assets)}\n\nAnnée en cours : ${new Date().getFullYear()}.` }], 16000, config.studioModel);
   await saveVersion(site.id, extractHtml(text), "Site généré par l'IA");
 }
 async function edit(site, instruction) {
