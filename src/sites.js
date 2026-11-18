@@ -105,6 +105,8 @@ async function cf(method, path, body, { token, form } = {}) {
   }
   return j.result;
 }
+const PERM_MSG = "Ce jeton peut lire mais pas publier. Sur Cloudflare, modifie le jeton : autorisation Compte › Cloudflare Pages › « Modifier » (pas « Lire »), et Ressources du compte › Inclure › ton compte.";
+const isAuthErr = (e) => e && (e.code === 10000 || e.code === 9109 || e.status === 403 || /authentication error|unauthorized/i.test(e.message || ""));
 async function cfConnect(raw) {
   const token = String(raw || "").trim();
   if (token.length < 30) throw new Error("Colle le jeton API Cloudflare en entier");
@@ -114,7 +116,10 @@ async function cfConnect(raw) {
   if (!accounts || !accounts.length) throw new Error("Ce jeton n'a accès à aucun compte Cloudflare");
   const acc = accounts[0];
   try { await cf("GET", `/accounts/${acc.id}/pages/projects`, null, { token }); }
-  catch { throw new Error("Il manque une autorisation à ce jeton : Compte › Cloudflare Pages › Modifier"); }
+  catch { throw new Error(PERM_MSG); }
+  // droit d'écriture : un nom de projet volontairement invalide renvoie une erreur de validation si le jeton peut publier, une erreur d'authentification sinon
+  try { await cf("POST", `/accounts/${acc.id}/pages/projects`, { name: "Biznify Test Droits!", production_branch: "main" }, { token }); }
+  catch (e) { if (isAuthErr(e)) throw new Error(PERM_MSG); }
   await q(`INSERT INTO settings (key, value) VALUES ('cloudflare', $1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
     [{ sealed: seal(token), accountId: acc.id, accountName: acc.name, connectedAt: new Date().toISOString() }]);
   return cfStatus();
@@ -455,7 +460,15 @@ api.get("/sites/:id/download", wrap(async (req, res) => {
 api.post("/sites/:id/publish", wrap(async (req, res) => {
   const s = await getSite(req.params.id);
   if (!s || !s.html) return res.status(404).json({ error: "Le site n'est pas encore prêt" });
-  try { res.json(await publish(s)); } catch (e) { console.warn("Publication :", e.message); res.status(502).json({ error: `Publication impossible : ${e.message}` }); }
+  try { res.json(await publish(s)); }
+  catch (e) {
+    console.warn("Publication :", e.code || "", e.status || "", e.message);
+    if (isAuthErr(e)) {
+      if (!config.cloudflareToken) await q(`DELETE FROM settings WHERE key='cloudflare'`);
+      return res.status(400).json({ error: `Cloudflare refuse la publication. ${PERM_MSG} Puis reconnecte Cloudflare ici.`, reconnect: true });
+    }
+    res.status(502).json({ error: `Publication impossible : ${e.message}` });
+  }
 }));
 api.post("/sites/:id/domain", wrap(async (req, res) => {
   const s = await getSite(req.params.id);

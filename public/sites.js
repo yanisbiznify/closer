@@ -215,7 +215,11 @@ async function publishSite() {
   const s = ST.cur, b = $("#se-publish");
   b.disabled = true; b.innerHTML = `<span class="spin"></span>Publication`;
   try { const r = await api(`/sites/${s.id}/publish`, { method: "POST", body: "{}" }); toast("Site en ligne"); await openSite(s.id); showOnline(r.url); }
-  catch (e) { toast(e.message); updateEditor(false); }
+  catch (e) {
+    updateEditor(false);
+    if (/reconnecte Cloudflare/.test(e.message)) { ST.cf = { connected: false }; return openCloudflare(publishSite, e.message); }
+    toast(e.message);
+  }
 }
 function showOnline(url) {
   const s = ST.cur, d = s.domain;
@@ -233,7 +237,7 @@ function showOnline(url) {
     catch (e) { $("#sl-err").textContent = e.message; }
   };
 }
-function openCloudflare(after) {
+function openCloudflare(after, why) {
   const cf = ST.cf || {};
   if (cf.connected) {
     bModal({ title: "Cloudflare", cancel: "Fermer", width: 520, body: `<div class="stc-ok"><span class="dot-ok"></span><div><b>Compte ${esc(cf.account || "Cloudflare")} connecté</b><p class="small muted" style="margin:2px 0 0">Tes sites sont publiés sur Cloudflare Pages, gratuitement.</p></div></div>
@@ -241,10 +245,11 @@ function openCloudflare(after) {
     const off = $("#cf-off"); if (off) off.onclick = async () => { await api("/cloudflare/disconnect", { method: "POST", body: "{}" }); $("#bm").classList.remove("on"); toast("Cloudflare déconnecté"); ST.cf = { connected: false }; if (!ST.cur) loadSites(); };
     return;
   }
-  bModal({ title: "Connecter Cloudflare", sub: "Une seule fois. L'hébergement de tes sites est gratuit.", go: "Connecter", width: 580, body: `
+  bModal({ title: why ? "Reconnecter Cloudflare" : "Connecter Cloudflare", sub: "Une seule fois. L'hébergement de tes sites est gratuit.", go: "Connecter", width: 580, body: `
+    ${why ? `<div class="small" role="alert" style="background:#FFF4E5;border:1px solid #F5C77E;border-radius:10px;padding:10px 12px;margin-bottom:12px">${esc(why)}</div>` : ""}
     <ol class="stc-steps">
       <li><b>Crée un compte Cloudflare gratuit</b> si tu n'en as pas, puis ouvre la page des jetons API.<br><a class="btn primary" style="margin-top:8px" href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">Ouvrir mes jetons Cloudflare</a></li>
-      <li><b>Crée un jeton</b> : « Créer un jeton » → « Créer un jeton personnalisé ». Nom : <b>Biznify</b>. Autorisation : <b>Compte › Cloudflare Pages › Modifier</b>. Puis « Continuer » et « Créer le jeton ».</li>
+      <li><b>Crée un jeton</b> : « Créer un jeton » → « Créer un jeton personnalisé ». Nom : <b>Biznify</b>. Autorisation : <b>Compte › Cloudflare Pages › Modifier</b> (pas « Lire »). Ressources du compte : <b>Inclure › ton compte</b>. Puis « Continuer » et « Créer le jeton ».</li>
       <li><b>Colle le jeton ici</b><div class="field" style="margin:8px 0 0"><input id="cf-token" type="password" autocomplete="off" spellcheck="false" placeholder="Jeton API Cloudflare" aria-label="Jeton API Cloudflare"></div>
         <p class="small muted" style="margin:6px 0 0">Il est vérifié puis enregistré chiffré.</p></li>
     </ol><div id="cf-err" class="small c-bad" role="alert" style="min-height:16px"></div>`,
