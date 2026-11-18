@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Connexion · Biznify</title>
+<meta name="robots" content="noindex">
 <meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -13,38 +14,119 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=15">
+<style>
+:root{--blue:#1877F2;--blue-d:#0F63D6;--ink:#0B1220;--mut:#5B6475;--line:#DFE4EC;--soft:#F5F7FB;--bad:#C0362C}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:400 15px/1.55 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased}
+.wrap{min-height:100%;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+
+/* Panneau de marque */
+.brand{position:relative;overflow:hidden;background:var(--blue);color:#fff;padding:44px 56px;display:flex;flex-direction:column;justify-content:space-between;isolation:isolate}
+.brand::before{content:"";position:absolute;inset:0;z-index:-1;background:
+  radial-gradient(120% 90% at 100% 0%,rgba(255,255,255,.16),transparent 55%),
+  radial-gradient(90% 70% at 0% 100%,rgba(11,18,32,.28),transparent 60%)}
+.logo{display:flex;align-items:center;gap:12px;font-weight:700;font-size:22px;letter-spacing:-.02em}
+.logo .m{width:40px;height:40px;border-radius:11px;background:#fff;display:grid;place-items:center}
+.logo .m svg{width:24px;height:24px}
+/* motif : la boîte Biznify en grand, au trait */
+.cube{position:absolute;right:-90px;top:50%;width:520px;height:520px;transform:translateY(-52%);opacity:.14;z-index:-1}
+.copy h1{font-size:clamp(34px,3.6vw,48px);line-height:1.08;letter-spacing:-.035em;font-weight:700;margin:0;max-width:14ch}
+.copy p{margin:18px 0 0;font-size:17px;max-width:40ch;color:rgba(255,255,255,.86)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px;list-style:none;padding:0}
+.tags li{font-size:13px;font-weight:500;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22)}
+.foot{font-size:13px;color:rgba(255,255,255,.7)}
+
+/* Formulaire */
+.form-side{display:flex;align-items:center;justify-content:center;padding:40px 24px;background:var(--soft)}
+form{width:100%;max-width:400px}
+.mlogo{display:none}
+h2{font-size:28px;letter-spacing:-.03em;margin:0;font-weight:700}
+.sub{color:var(--mut);margin:8px 0 30px}
+.field{margin-bottom:18px}
+label{display:block;font-size:13.5px;font-weight:600;margin-bottom:8px}
+.inp{position:relative}
+input{width:100%;height:50px;padding:0 16px;font:400 16px Inter,system-ui,sans-serif;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:12px;transition:border-color .15s,box-shadow .15s}
+input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(24,119,242,.14)}
+input[aria-invalid="true"]{border-color:var(--bad)}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);height:38px;padding:0 12px;border:0;background:none;color:var(--mut);font:600 13px Inter,system-ui,sans-serif;cursor:pointer;border-radius:8px}
+.eye:hover{color:var(--ink);background:var(--soft)}
+.eye:focus-visible,button:focus-visible{outline:3px solid rgba(24,119,242,.45);outline-offset:2px}
+.has-eye input{padding-right:96px}
+.go{width:100%;height:52px;margin-top:8px;border:0;border-radius:12px;background:var(--blue);color:#fff;font:600 16px Inter,system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .15s,transform .15s;box-shadow:0 10px 24px -10px rgba(24,119,242,.7)}
+.go:hover{background:var(--blue-d)}.go:active{transform:translateY(1px)}
+.go:disabled{opacity:.7;cursor:progress}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.err{min-height:22px;margin-top:14px;color:var(--bad);font-size:14px;font-weight:500}
+.note{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--mut);display:flex;gap:8px;align-items:flex-start}
+.note svg{flex:none;margin-top:2px}
+
+@media (max-width:860px){
+  .wrap{grid-template-columns:1fr}
+  .brand{display:none}
+  .form-side{align-items:flex-start;padding:56px 22px 32px;background:#fff}
+  .mlogo{display:flex;margin-bottom:36px;color:var(--ink)}
+  .mlogo .m{background:var(--blue)}
+  .mlogo .m svg path{stroke:#fff}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
 </head>
 <body>
-<div class="auth">
-  <div class="auth-art">
-    <div class="wm" style="display:flex;align-items:center;gap:10px"><img src="/brand/biznify-logo.svg" alt="Biznify" style="height:29px"></div>
-    <div class="auth-line" aria-hidden="true"></div>
+<div class="wrap">
+  <aside class="brand" aria-hidden="true">
+    <div class="logo"><span class="m"><svg viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>Biznify</div>
+    <svg class="cube" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width=".35" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
     <div class="copy">
       <h1>Ton business, au même endroit.</h1>
-      <p>Appels, prospects, rendez-vous, automatisations et factures : tout Biznify dans une seule app.</p>
+      <p>Appels, prospects, rendez-vous, automatisations, factures et sites clients : tout Biznify dans une seule app.</p>
+      <ul class="tags"><li>Pipeline</li><li>Dialer</li><li>Agenda</li><li>Factures</li><li>AI Studio</li></ul>
     </div>
-  </div>
-  <div class="auth-form">
-    <form id="f">
+    <div class="foot">© <span id="y"></span> Biznify Technologies Ltd</div>
+  </aside>
+
+  <main class="form-side">
+    <form id="f" novalidate>
+      <div class="logo mlogo"><span class="m"><svg viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>Biznify</div>
       <h2>Connexion</h2>
-      <p class="muted">Entre ton mot de passe pour accéder à Biznify.</p>
-      <div class="field"><label for="pw">Mot de passe</label><input type="password" id="pw" autocomplete="current-password" required autofocus></div>
-      <button class="btn primary lg" style="width:100%" id="go">Se connecter</button>
-      <div id="err" class="small c-bad" style="margin-top:12px;min-height:18px" role="alert"></div>
+      <p class="sub">Content de te revoir. Connecte-toi pour accéder à ton espace.</p>
+      <div class="field">
+        <label for="em">Email</label>
+        <div class="inp"><input id="em" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" required autofocus></div>
+      </div>
+      <div class="field">
+        <label for="pw">Mot de passe</label>
+        <div class="inp has-eye"><input id="pw" name="password" type="password" autocomplete="current-password" required><button type="button" class="eye" id="eye" aria-controls="pw" aria-pressed="false">Afficher</button></div>
+      </div>
+      <button class="go" id="go" type="submit">Se connecter</button>
+      <div id="err" class="err" role="alert" aria-live="polite"></div>
+      <p class="note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Connexion sécurisée. Tu restes connecté 60 jours sur cet appareil.</span></p>
     </form>
-  </div>
+  </main>
 </div>
 <script>
+document.getElementById("y").textContent = new Date().getFullYear();
+const em = document.getElementById("em"), pw = document.getElementById("pw"), err = document.getElementById("err"), btn = document.getElementById("go"), eye = document.getElementById("eye");
+try { const last = localStorage.getItem("bz_email"); if (last) { em.value = last; pw.focus(); } } catch (_) {}
+eye.addEventListener("click", () => { const show = pw.type === "password"; pw.type = show ? "text" : "password"; eye.textContent = show ? "Masquer" : "Afficher"; eye.setAttribute("aria-pressed", show); pw.focus(); });
+[em, pw].forEach((i) => i.addEventListener("input", () => { i.removeAttribute("aria-invalid"); err.textContent = ""; }));
 document.getElementById("f").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const btn = document.getElementById("go"); btn.disabled = true;
+  err.textContent = "";
+  if (!em.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.value.trim())) { em.setAttribute("aria-invalid", "true"); err.textContent = "Indique ton adresse email."; em.focus(); return; }
+  if (!pw.value) { pw.setAttribute("aria-invalid", "true"); err.textContent = "Indique ton mot de passe."; pw.focus(); return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spin" aria-hidden="true"></span>Connexion…';
   try {
-    const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: document.getElementById("pw").value }) });
+    const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: em.value.trim(), password: pw.value }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || "Connexion impossible");
+    try { localStorage.setItem("bz_email", em.value.trim()); } catch (_) {}
     location.href = "/";
-  } catch (err) { document.getElementById("err").textContent = err.message; btn.disabled = false; }
+  } catch (x) {
+    err.textContent = x.message; pw.setAttribute("aria-invalid", "true"); pw.select();
+    btn.disabled = false; btn.textContent = "Se connecter";
+  }
 });
 </script>
 </body>

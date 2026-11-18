@@ -86,9 +86,12 @@ app.post("/api/login", (req, res) => {
   if (Date.now() - a.t > 15 * 60e3) { a.n = 0; a.t = Date.now(); }
   if (a.n >= 10) return res.status(429).json({ error: "Trop de tentatives. Réessaie dans 15 minutes." });
   if (!config.appPassword) return res.status(500).json({ error: "APP_PASSWORD n'est pas défini sur le serveur." });
-  if (!safeEqual(req.body && req.body.password, config.appPassword)) {
+  const email = String((req.body && req.body.email) || "").trim().toLowerCase();
+  const okEmail = safeEqual(email, String(config.appEmail || "").trim().toLowerCase());
+  const okPass = safeEqual(req.body && req.body.password, config.appPassword);
+  if (!okEmail || !okPass) {
     a.n++; attempts.set(ip, a);
-    return res.status(401).json({ error: "Mot de passe incorrect." });
+    return res.status(401).json({ error: "Email ou mot de passe incorrect." });
   }
   attempts.delete(ip);
   res.setHeader("Set-Cookie", `${COOKIE}=${makeToken()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${DAYS * 86400}${req.secure ? "; Secure" : ""}`);

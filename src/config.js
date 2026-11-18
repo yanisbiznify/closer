@@ -8,6 +8,7 @@ const config = {
   databaseUrl: env("DATABASE_URL"),
   pgSsl: env("PGSSL", "false") === "true",
 
+  appEmail: env("APP_EMAIL", "yanisbiznify@gmail.com"),
   appPassword: env("APP_PASSWORD"),
   sessionSecret: env("SESSION_SECRET"),
   webhookSecret: env("WEBHOOK_SECRET"),
