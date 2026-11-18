@@ -179,6 +179,12 @@ async function stopRunsFor(appointmentId) {
 
 /* ---------- API (connecté) ---------- */
 const api = express.Router();
+// IP réelle du visiteur quand la page passe par le relais booking.biznify.pro
+function clientIp(req) {
+  const secret = process.env.BOOKING_RELAY_SECRET;
+  if (secret && req.get("x-relay-secret") === secret && req.get("x-client-ip")) return String(req.get("x-client-ip")).slice(0, 64);
+  return req.ip;
+}
 const withUrl = (c) => ({ ...c, url: tw.bookingLink(c.slug) });
 
 api.get("/booking/calendars", wrap(async (req, res) => {
@@ -487,9 +493,10 @@ function publicRoutes() {
     const cal = (await q(`SELECT * FROM booking_calendars WHERE slug=$1 AND active`, [req.params.slug])).rows[0];
     if (!cal) return res.status(404).json({ error: "Calendrier introuvable" });
     if (req.body && req.body.website) return res.status(400).json({ error: "Réservation refusée" }); // robot
-    if (limited(req.ip)) return res.status(429).json({ error: "Trop de réservations, réessayez plus tard" });
+    const ip = clientIp(req);
+    if (limited(ip)) return res.status(429).json({ error: "Trop de réservations, réessayez plus tard" });
     try {
-      const out = await book(cal, req.body || {}, req.ip);
+      const out = await book(cal, req.body || {}, ip);
       res.json({ start: out.appointment.start_at, meet: out.meet, manage: manageUrl(out.appointment) });
     } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : "Réservation impossible, réessayez" }); if (!e.status) console.warn("Réservation :", e.message); }
   }));
