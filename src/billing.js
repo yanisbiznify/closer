@@ -76,7 +76,11 @@ async function nextNumber(prefix) {
 }
 
 const base = () => tw.publicUrl() || "";
-const invoiceUrl = (inv) => `${base()}/facture/${inv.token}`;
+const payBase = () => tw.payUrl() || "";
+const invoiceUrl = (inv) => `${payBase()}/facture/${inv.token}`;
+// lien court sur ton domaine, qui renvoie vers la page de paiement Stripe
+const linkUrl = (l) => (payBase() ? `${payBase()}/p/${l.id}` : l.url);
+const serializeLink = (l) => ({ ...l, stripe_url: l.url, url: linkUrl(l) });
 
 function serialize(inv) {
   return { ...inv, url: invoiceUrl(inv), vat_rate: Number(inv.vat_rate) };
@@ -142,7 +146,7 @@ api.get("/invoices", async (req, res) => {
   const sum = (f) => inv.filter(f).reduce((s, x) => s + x.total_cents, 0);
   res.json({
     invoices: inv,
-    links: links.rows,
+    links: links.rows.map(serializeLink),
     totals: {
       paid: sum((x) => x.status === "payee") + links.rows.reduce((s, l) => s + l.paid_cents, 0),
       pending: sum((x) => x.status === "emise"),
@@ -276,7 +280,7 @@ api.post("/payment-links", async (req, res) => {
     const link = await stripe.call("POST", "/payment_links", { line_items: [{ price: price.id, quantity: 1 }], metadata: { closer: "lien" } });
     const r = await q(`INSERT INTO payment_links (label, amount_cents, lead_id, stripe_id, url) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [label, amount, Number(req.body.leadId) || null, link.id, link.url]);
-    res.json({ link: r.rows[0] });
+    res.json({ link: serializeLink(r.rows[0]) });
   } catch (e) { res.status(e.code === "stripe_off" ? 409 : 502).json({ error: e.message }); }
 });
 api.post("/payment-links/:id/disable", async (req, res) => {
@@ -401,6 +405,14 @@ ${inv.notes || b.paymentTerms ? `<div class="notes">${inv.notes ? `<p><b>Note</b
 
 function publicRoutes(isOwner) {
   const r = safeRouter();
+  // lien de paiement court : pay.biznify.pro/p/12 → page de paiement Stripe
+  r.get("/p/:id", async (req, res) => {
+    const l = /^\d+$/.test(req.params.id) ? (await q(`SELECT url, active FROM payment_links WHERE id=$1`, [req.params.id])).rows[0] : null;
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Robots-Tag", "noindex");
+    if (!l || !l.active) return res.status(404).send("<!DOCTYPE html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Lien expiré</title><p style=\"font-family:system-ui;padding:40px;color:#0B1220\">Ce lien de paiement n'est plus actif. Contactez Biznify pour en recevoir un nouveau.</p>");
+    res.redirect(302, l.url);
+  });
   r.get("/facture/:token", async (req, res) => {
     const inv = (await q(`SELECT * FROM invoices WHERE token=$1`, [req.params.token])).rows[0];
     res.setHeader("Cache-Control", "no-store");

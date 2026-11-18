@@ -21,6 +21,13 @@ const ghlApi = require("./src/ghl");
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
+// pay.biznify.pro ne sert que les pages clients (factures, liens de paiement), jamais l'app
+const PAY_HOST = (() => { try { return config.payUrl ? new URL(config.payUrl).hostname : null; } catch { return null; } })();
+app.use((req, res, next) => {
+  if (!PAY_HOST || req.hostname !== PAY_HOST) return next();
+  if (/^\/(facture\/|p\/|email\/|brand\/|api\/stripe\/webhook|robots\.txt)/.test(req.path)) return next();
+  res.redirect(302, "https://biznify.pro");
+});
 // Webhook Stripe : corps brut pour vérifier la signature, avant le parseur JSON
 app.post("/api/stripe/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res, next) => billing.webhook(req, res).catch(next));
 app.use(express.json({ limit: "2mb" }));

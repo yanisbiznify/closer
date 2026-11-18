@@ -7,6 +7,11 @@ const enabled = () => !!(config.twilioSid && config.twilioToken && config.twilio
 const missing = () =>
   ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_CALLER_ID"].filter((k) => !process.env[k]);
 
+// Adresse des pages vues par les clients (factures, liens de paiement) : pay.biznify.pro si défini
+function payUrl() {
+  if (config.payUrl) return config.payUrl.replace(/\/$/, "");
+  return publicUrl();
+}
 function publicUrl() {
   if (config.publicUrl) return config.publicUrl.replace(/\/$/, "");
   if (process.env.RAILWAY_PUBLIC_DOMAIN) return "https://" + process.env.RAILWAY_PUBLIC_DOMAIN;
@@ -115,4 +120,4 @@ async function downloadRecording(url) {
   return { buffer: Buffer.from(await res.arrayBuffer()), type: "audio/mpeg" };
 }
 
-module.exports = { client, enabled, missing, ensureSetup, token, normalizePhone, validRequest, voiceTwiml, rejectTwiml, downloadRecording, publicUrl };
+module.exports = { client, enabled, missing, ensureSetup, token, normalizePhone, validRequest, voiceTwiml, rejectTwiml, downloadRecording, publicUrl, payUrl };

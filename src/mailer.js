@@ -220,7 +220,7 @@ async function bookingChanged(a, lead, cal, kind, newStart) {
 async function invoicePaid(inv) {
   const n = await getNotif();
   const c = inv.client || {};
-  const url = `${base()}/facture/${inv.token}`;
+  const url = `${tw.payUrl() || base()}/facture/${inv.token}`;
   if (n.client.payment_receipt && c.email) {
     await sendTemplate(c.email, `Paiement reçu : facture ${inv.number}`, {
       preheader: `Merci, ${euro(inv.total_cents)} bien reçus`,
@@ -245,7 +245,7 @@ async function invoicePaid(inv) {
 async function invoiceSend(inv, { message } = {}) {
   const c = inv.client || {};
   if (!c.email) throw new Error("Ajoute l'email du client sur la facture");
-  const url = `${base()}/facture/${inv.token}`;
+  const url = `${tw.payUrl() || base()}/facture/${inv.token}`;
   const s = await getSettings();
   const due = inv.due_date ? new Date(inv.due_date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   return sendTemplate(c.email, `Facture ${inv.number}${inv.title ? ` : ${inv.title}` : ""}`, {
