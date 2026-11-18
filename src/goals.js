@@ -35,6 +35,36 @@ async function migrate() {
     ALTER TABLE goals ADD COLUMN IF NOT EXISTS direction TEXT NOT NULL DEFAULT 'up'; -- up : monter jusqu'à la cible · down : descendre (poids…)
     ALTER TABLE goals ADD COLUMN IF NOT EXISTS baseline NUMERIC(14,2);               -- point de départ d'un objectif « down »
   `);
+  await importFromEnv();
+}
+
+// Import ponctuel : la variable GOALS_IMPORT (tableau JSON) ajoute des objectifs au démarrage.
+// Un objectif déjà présent (même titre, horizon et date de début) n'est jamais ajouté deux fois.
+// Retire la variable une fois l'import fait.
+async function importFromEnv() {
+  const raw = process.env.GOALS_IMPORT;
+  if (!raw) return;
+  let list;
+  try { list = JSON.parse(raw); } catch (e) { return console.warn("GOALS_IMPORT : JSON invalide —", e.message); }
+  if (!Array.isArray(list)) return console.warn("GOALS_IMPORT doit être un tableau JSON");
+  let added = 0;
+  for (const [i, b] of list.slice(0, 100).entries()) {
+    try {
+      const horizon = HORIZONS.includes(b.horizon) ? b.horizon : "semaine";
+      const p = periodFor(horizon, isDate(b.start_date) ? b.start_date : new Date().toISOString().slice(0, 10));
+      const g = clean({ domain: "pro", metric: "check", start_date: p.start, end_date: p.end, ...b, horizon });
+      const dup = await q(`SELECT 1 FROM goals WHERE title=$1 AND horizon=$2 AND start_date=$3`, [g.title, g.horizon, g.start_date]);
+      if (dup.rows.length) continue;
+      await q(
+        `INSERT INTO goals (horizon, domain, title, metric, target, current, unit, start_date, end_date, notes, position, direction, baseline)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [g.horizon, g.domain || "pro", g.title, g.metric, g.metric === "check" ? null : g.target, g.current || 0, g.unit || null, g.start_date, g.end_date, g.notes || null, i + 1,
+          g.metric === "nombre" ? g.direction || "up" : "up", g.metric === "nombre" && g.direction === "down" ? (g.baseline != null ? g.baseline : g.current || null) : null]
+      );
+      added++;
+    } catch (e) { console.warn(`GOALS_IMPORT : objectif n°${i + 1} ignoré —`, e.message); }
+  }
+  console.log(`GOALS_IMPORT : ${added} objectif(s) ajouté(s)`);
 }
 
 /* ---------- Dates (AAAA-MM-JJ, dans le fuseau de l'utilisateur) ---------- */
