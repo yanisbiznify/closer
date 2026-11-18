@@ -272,6 +272,22 @@ async function replyReceived(lead, channel, body) {
   });
 }
 
+// Demande reçue via un site créé dans AI Studio → email au client propriétaire du site
+async function siteSubmission(site, data) {
+  if (!site.notify_email) return;
+  const label = { nom: "Nom", telephone: "Téléphone", email: "Email", message: "Message", service: "Service", _page: "Page" };
+  const rows = Object.entries(data).filter(([k, v]) => v && k !== "consentement").map(([k, v]) => [label[k] || k.charAt(0).toUpperCase() + k.slice(1), v]);
+  const tel = data.telephone || data.phone || "";
+  await sendTemplate(site.notify_email, `Nouvelle demande sur votre site : ${data.nom || "un visiteur"}`, {
+    audience: "client", preheader: String(data.message || "").slice(0, 120),
+    title: "Nouvelle demande depuis votre site",
+    intro: `${data.nom || "Un visiteur"} vient de vous écrire depuis le site ${site.name}. Rappelez-le rapidement : un prospect contacté dans l'heure a bien plus de chances de signer.`,
+    rows,
+    cta: tel ? { label: `Appeler ${data.nom || ""}`.trim(), url: `tel:${tel.replace(/\s/g, "")}` } : data.email ? { label: "Répondre par email", url: `mailto:${data.email}` } : null,
+    note: "Site réalisé et hébergé par Biznify.",
+  }, { replyTo: data.email || undefined, fromName: "Biznify" });
+}
+
 /* ---------- Résumé du jour (heure du propriétaire) ---------- */
 async function digest(force = false) {
   const n = await getNotif();
@@ -370,4 +386,4 @@ publicRoutes.get("/email/logo.png", wrap(async (req, res) => {
   res.type("png").send(LOGO);
 }));
 
-module.exports = { api, publicRoutes, start, fire, send, layout, textToHtml, sendTemplate, bookingCreated, bookingChanged, invoicePaid, invoiceSend, replyReceived, digest, status };
+module.exports = { api, publicRoutes, start, fire, send, layout, textToHtml, sendTemplate, bookingCreated, bookingChanged, invoicePaid, invoiceSend, replyReceived, digest, status, siteSubmission };

@@ -14,6 +14,7 @@ const inbox = require("./src/inbox");
 const automations = require("./src/automations");
 const booking = require("./src/booking");
 const mailer = require("./src/mailer");
+const sites = require("./src/sites");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -260,12 +261,14 @@ api.use(inbox.api);
 api.use(automations.api);
 api.use(booking.api);
 api.use(mailer.api);
+api.use(sites.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
 app.use(billing.publicRoutes(authed));
 app.use(booking.publicRoutes());
 app.use(mailer.publicRoutes);
+app.use(sites.publicRoutes);
 
 /* ---------- Front ---------- */
 app.use("/vendor/xlsx", express.static(path.join(__dirname, "node_modules/xlsx/dist"), { maxAge: "7d" }));
@@ -297,6 +300,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
     process.exit(1);
   }
   await migrate();
+  await sites.migrate();
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();

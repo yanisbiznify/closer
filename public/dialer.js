@@ -27,6 +27,7 @@ function onView(v) {
   if (v === "revenue") loadRevenue();
   if (typeof cvOnView === "function") cvOnView(v);
   if (v === "automations") loadAutomations();
+  if (v === "sites" && typeof loadSites === "function") loadSites();
   if (v === "settings" && typeof loadNotifications === "function") loadNotifications();
 }
 
