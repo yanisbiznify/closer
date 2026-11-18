@@ -1,4 +1,4 @@
-/* CLOSER PRO — Conversations SMS et email */
+/* Biznify — Conversations SMS et email */
 const CV = { status: null, list: [], filter: "all", q: "", leadId: null, thread: null, channel: null, timer: null, drafts: {} };
 
 const CV_ICON = {

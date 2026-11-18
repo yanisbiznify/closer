@@ -77,7 +77,7 @@ api.post("/calendar/events", async (req, res) => {
       if (lead.ghl_contact_id && config.ghlApiKey) {
         const when = start.toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "full", timeStyle: "short" });
         ghlResult = await ghl.logOutcome(lead.ghl_contact_id, {
-          title: "CLOSER PRO : rendez-vous planifié",
+          title: "Biznify : rendez-vous planifié",
           body: `Rendez-vous le ${when} (heure de Paris).${ev.meet ? "\nGoogle Meet : " + ev.meet : ""}`,
           tag: "closer-rdv",
         });

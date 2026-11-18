@@ -1,4 +1,4 @@
-/* CLOSER PRO — Chiffre d'affaires */
+/* Biznify — Chiffre d'affaires */
 const RV = { month: null, data: null, table: false };
 const rvEuro = (c, dec = false) => ((c || 0) / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: dec ? 2 : 0, minimumFractionDigits: dec ? 2 : 0 });
 const rvMonthName = (ym, short = false) => { const [y, m] = ym.split("-").map(Number); const s = new Date(y, m - 1, 15).toLocaleDateString("fr-FR", short ? { month: "short" } : { month: "long", year: "numeric" }); return short ? s.replace(".", "") : s.charAt(0).toUpperCase() + s.slice(1); };

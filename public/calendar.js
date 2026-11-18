@@ -1,4 +1,4 @@
-/* CLOSER PRO — Agenda (Google Agenda + Google Meet) */
+/* Biznify — Agenda (Google Agenda + Google Meet) */
 const CAL = { status: null, start: null, events: [], upcoming: [], loading: false };
 let H0 = 7, H1 = 24; const PX = 1.3; // plage horaire adaptée aux RDV de la semaine (heure locale)
 const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -31,7 +31,7 @@ function renderCalSetup() {
       <h2 style="font-size:18px;margin-bottom:6px">Relie ton Google Agenda</h2>
       <p class="muted" style="margin:0 0 16px">Une seule fois : crée l'accès dans Google Cloud, colle deux clés dans Railway, puis connecte ton compte ici.</p>
       <ol class="setup-steps" style="line-height:1.7">
-        <li>Sur <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a>, crée un projet « CLOSER PRO », puis active <b>Google Calendar API</b>.</li>
+        <li>Sur <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a>, crée un projet « Biznify », puis active <b>Google Calendar API</b>.</li>
         <li><b>OAuth consent screen</b> : type « External », ajoute ton adresse Gmail, puis passe le statut de publication sur <b>In production</b> (sinon la connexion expire au bout de 7 jours).</li>
         <li><b>Credentials → Create credentials → OAuth client ID</b> → « Web application ». Dans <b>Authorized redirect URIs</b>, colle :<br><code style="user-select:all">${esc(s.redirectUri || location.origin + "/api/google/callback")}</code></li>
         <li>Dans Railway, ajoute <code>GOOGLE_CLIENT_ID</code> et <code>GOOGLE_CLIENT_SECRET</code>, puis reviens sur cette page.</li>
@@ -41,7 +41,7 @@ function renderCalSetup() {
   $("#cal-setup").innerHTML = `<div class="panel cal-connect"><div class="panel-b">
     <div class="cal-g">${ICON_MEET}</div>
     <h2>Connecte ton Google Agenda</h2>
-    <p class="muted">CLOSER PRO affichera tes rendez-vous et créera un lien Google Meet pour chaque nouveau rendez-vous, avec l'invitation envoyée au prospect.</p>
+    <p class="muted">Biznify affichera tes rendez-vous et créera un lien Google Meet pour chaque nouveau rendez-vous, avec l'invitation envoyée au prospect.</p>
     <a class="btn primary lg" href="/api/google/auth">Connecter Google Agenda</a></div></div>`;
 }
 

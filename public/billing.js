@@ -1,4 +1,4 @@
-/* CLOSER PRO — Factures et liens de paiement Stripe */
+/* Biznify — Factures et liens de paiement Stripe */
 const BL = { data: null, settings: null };
 const euro = (c) => ((c || 0) / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const dShort = (d) => (d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—");

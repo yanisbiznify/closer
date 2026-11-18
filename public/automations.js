@@ -1,4 +1,4 @@
-/* CLOSER PRO — Automatisations */
+/* Biznify — Automatisations */
 const AU = { meta: null, list: [], installed: [], tasks: [], edit: null };
 
 const AU_ICON = {
@@ -107,7 +107,7 @@ function renderTasks() {
 async function openTemplates() {
   await auMeta();
   const close = bModal({
-    title: "Modèles d'automatisations", sub: "Tes automatisations GoHighLevel recréées pour CLOSER PRO, plus les indispensables. Elles s'installent désactivées : relis les messages, puis active-les.", width: 680, cancel: "Fermer",
+    title: "Modèles d'automatisations", sub: "Tes automatisations GoHighLevel recréées pour Biznify, plus les indispensables. Elles s'installent désactivées : relis les messages, puis active-les.", width: 680, cancel: "Fermer",
     body: `<ul class="au-tpls">${AU.meta.templates.map((t) => {
       const done = AU.installed.includes(t.key);
       return `<li><div class="grow"><b>${esc(t.name)}</b><p>${esc(t.description)}</p></div>${done ? `<span class="badge good">Installé</span>` : `<button class="btn ghost" data-key="${t.key}">Installer</button>`}</li>`;

@@ -173,8 +173,8 @@ api.post("/leads/:id/outcome", async (req, res) => {
   if (lead.ghl_contact_id && config.ghlApiKey) {
     const when = callbackAt ? ` le ${callbackAt.toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "short", timeStyle: "short" })}` : "";
     ghlResult = await ghl.logOutcome(lead.ghl_contact_id, {
-      title: `CLOSER PRO : ${o.label}`,
-      body: `Appel CLOSER PRO : ${o.label}${when}.${lead.notes ? "\n\nNotes : " + lead.notes : ""}`,
+      title: `Biznify : ${o.label}`,
+      body: `Appel Biznify : ${o.label}${when}.${lead.notes ? "\n\nNotes : " + lead.notes : ""}`,
       tag: o.tag,
     });
   }

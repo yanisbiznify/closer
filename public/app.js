@@ -1,4 +1,4 @@
-/* CLOSER PRO — application v2 */
+/* Biznify — application v2 */
 const ETAPES = [
   ["ouverture", "Ouverture", "Les 4 premières secondes"],
   ["tonalite", "Tonalité", ""],
@@ -176,7 +176,7 @@ function renderDashboard() {
        <p>C'est l'étape où tu perds le plus de points : ${notes[weakest[0]].toFixed(1)}/10 en moyenne sur tes ${last10.length} derniers appels.</p>
        ${last && last.summary && last.summary.priorite ? `<div class="advice"><b>Dernier conseil du coach</b><br>${esc(last.summary.priorite)}</div>` : ""}
        <div style="margin-top:18px"><button class="btn ghost" data-go="coach">Ouvrir le bilan du coach</button></div>`
-    : `<div class="k">Pour commencer</div><h3>Analyse ton premier appel</h3><p>Passe tes appels depuis GoHighLevel : CLOSER PRO les récupère tout seul. Tu peux aussi importer un enregistrement.</p><div style="margin-top:18px"><button class="btn primary" data-go="calls">Voir mes appels</button></div>`;
+    : `<div class="k">Pour commencer</div><h3>Analyse ton premier appel</h3><p>Passe tes appels depuis GoHighLevel : Biznify les récupère tout seul. Tu peux aussi importer un enregistrement.</p><div style="margin-top:18px"><button class="btn primary" data-go="calls">Voir mes appels</button></div>`;
 
   // Graphique
   if (all.length >= 2) {
@@ -187,7 +187,7 @@ function renderDashboard() {
     const area = `${line} L${xs(pts.length - 1).toFixed(1)} ${ys(0)} L${xs(0)} ${ys(0)} Z`;
     const step = Math.max(1, Math.ceil(pts.length / 6));
     $("#chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du score">
-      <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5B301" stop-opacity=".22"/><stop offset="1" stop-color="#F5B301" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1877F2" stop-opacity=".22"/><stop offset="1" stop-color="#1877F2" stop-opacity="0"/></linearGradient></defs>
       ${[0, 25, 50, 75, 100].map((g) => `<line x1="${L}" x2="${W - R}" y1="${ys(g)}" y2="${ys(g)}" stroke="var(--line-soft)"/><text x="${L - 8}" y="${ys(g) + 4}" text-anchor="end">${g}</text>`).join("")}
       <path d="${area}" fill="url(#ga)"/>
       <path d="${line}" fill="none" stroke="var(--or)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
@@ -409,7 +409,7 @@ function renderSyncInfo() {
   const w = workerState || {};
   $("#sync-info").innerHTML = w.lastSyncError
     ? `<span class="c-bad">La dernière synchronisation a échoué : ${esc(w.lastSyncError)}</span>`
-    : w.lastSync ? `Dernière synchronisation ${esc(fmtFull(w.lastSync))}. CLOSER PRO vérifie tes nouveaux appels toutes les 10 minutes.` : "CLOSER PRO vérifie tes nouveaux appels toutes les 10 minutes.";
+    : w.lastSync ? `Dernière synchronisation ${esc(fmtFull(w.lastSync))}. Biznify vérifie tes nouveaux appels toutes les 10 minutes.` : "Biznify vérifie tes nouveaux appels toutes les 10 minutes.";
 }
 $("#btn-save").onclick = async () => {
   try {

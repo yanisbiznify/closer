@@ -1,4 +1,4 @@
-/* CLOSER PRO — CRM : pipeline, fiche prospect, import Excel */
+/* Biznify — CRM : pipeline, fiche prospect, import Excel */
 const CRM = { stages: [], leads: [], list: "", q: "", more: {}, drag: null };
 const PER_COL = 60;
 const crmName = (l) => [l.first_name, l.last_name].filter(Boolean).join(" ") || l.name || "";

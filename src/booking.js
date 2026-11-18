@@ -214,7 +214,7 @@ api.post("/calendar/events/:id/status", wrap(async (req, res) => {
   const st = req.body && req.body.status;
   if (!["present", "absent", "planifie"].includes(st)) return res.status(400).json({ error: "Statut invalide" });
   const r = await q(`UPDATE appointments SET status=$2 WHERE google_event_id=$1 RETURNING *`, [req.params.id, st]);
-  if (!r.rows[0]) return res.status(404).json({ error: "Ce RDV n'a pas été créé depuis CLOSER PRO" });
+  if (!r.rows[0]) return res.status(404).json({ error: "Ce RDV n'a pas été créé depuis Biznify" });
   res.json({ appointment: r.rows[0] });
 }));
 api.get("/calendar/appointments", wrap(async (req, res) => {

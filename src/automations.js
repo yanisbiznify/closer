@@ -471,7 +471,7 @@ const TEMPLATES = {
 async function aiDraft(prompt, current) {
   if (!config.anthropicApiKey) { const e = new Error("Ajoute ANTHROPIC_API_KEY dans Railway pour créer des automatisations avec l'IA"); e.code = "no_key"; throw e; }
   const s = await getSettings();
-  const system = `Tu es l'assistant automatisations de CLOSER PRO, le CRM de ${s.prenom || "Yanis"} (agence Biznify : IA réceptionniste pour les entreprises du BTP en France).
+  const system = `Tu es l'assistant automatisations de l'app Biznify, le CRM de ${s.prenom || "Yanis"} (agence Biznify : IA réceptionniste pour les entreprises du BTP en France).
 Tu transformes une demande en français en UNE automatisation, au format JSON strict, sans texte autour.
 
 Format :

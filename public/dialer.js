@@ -1,4 +1,4 @@
-/* CLOSER PRO — dialer, prospects, objections */
+/* Biznify — dialer, prospects, objections */
 const OUT = {
   rdv: { label: "Rendez-vous", color: "var(--good)", key: "1" },
   rappel: { label: "À rappeler", color: "var(--mid)", key: "2" },
@@ -47,12 +47,12 @@ function renderSetup() {
   $("#dl-state").textContent = c.enabled ? `Prêt, numéro ${fmtPhone(c.callerId)}` : "Non configuré";
   if (c.enabled) { $("#dl-setup").innerHTML = ""; return; }
   $("#dl-setup").innerHTML = `<div class="callout ${c.error ? "err" : ""}"><div class="grow">
-    <b>${c.error ? "Le dialer n'a pas pu se connecter à Twilio" : "Connecte Twilio pour passer tes appels depuis CLOSER PRO"}</b>
+    <b>${c.error ? "Le dialer n'a pas pu se connecter à Twilio" : "Connecte Twilio pour passer tes appels depuis Biznify"}</b>
     <p>${c.error ? esc(c.error) : "Tu peux déjà préparer tes listes et ta file d'appels. Pour appeler :"}</p>
     ${c.error ? "" : `<ol class="setup-steps">
       <li>Crée un compte sur twilio.com et achète un numéro français, ou vérifie ton numéro actuel comme identifiant d'appel.</li>
       <li>Dans Railway, ajoute <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code> et <code>TWILIO_CALLER_ID</code> (ton numéro au format +33…).</li>
-      <li>C'est tout : CLOSER PRO configure le reste au démarrage.</li></ol>`}
+      <li>C'est tout : Biznify configure le reste au démarrage.</li></ol>`}
   </div></div>`;
 }
 
@@ -293,17 +293,17 @@ function openImport(title, sub, body, onGo) {
   };
 }
 const importDone = (r) => {
-  toast(`${r.added} prospect${r.added > 1 ? "s" : ""} importé${r.added > 1 ? "s" : ""}${r.invalid ? `, ${r.invalid} sans numéro valide` : ""}${r.dup ? `, ${r.dup} déjà dans CLOSER PRO` : ""}`);
+  toast(`${r.added} prospect${r.added > 1 ? "s" : ""} importé${r.added > 1 ? "s" : ""}${r.invalid ? `, ${r.invalid} sans numéro valide` : ""}${r.dup ? `, ${r.dup} déjà dans Biznify` : ""}`);
   $("#lead-list").value = r.listId; loadLeadsView(); D.loaded && loadQueue();
 };
 
 $("#btn-imp-ghl").onclick = async () => {
   let mode = "pipeline";
-  openImport("Importer depuis GoHighLevel", "Récupère tes leads GHL dans CLOSER PRO, avec leur étape et leur valeur.",
+  openImport("Importer depuis GoHighLevel", "Récupère tes leads GHL dans Biznify, avec leur étape et leur valeur.",
     `<div class="seg" id="imp-mode" style="margin-bottom:16px"><button data-m="pipeline" class="on">Un pipeline</button><button data-m="tag">Un tag</button></div>
      <div id="imp-m-pipeline">
        <div class="field"><label for="imp-pipe">Pipeline GHL</label><select id="imp-pipe"><option>Chargement…</option></select></div>
-       <p class="small muted" style="margin:0">Chaque opportunité devient un prospect, placé à l'étape correspondante du pipeline CLOSER PRO (RDV, rappel, client signé…). Les prospects déjà importés ne sont pas dupliqués : tu peux relancer l'import pour ajouter les nouveaux.</p>
+       <p class="small muted" style="margin:0">Chaque opportunité devient un prospect, placé à l'étape correspondante du pipeline Biznify (RDV, rappel, client signé…). Les prospects déjà importés ne sont pas dupliqués : tu peux relancer l'import pour ajouter les nouveaux.</p>
      </div>
      <div id="imp-m-tag" hidden>
        <div class="field"><label for="imp-tag">Tag GHL</label><select id="imp-tag"><option>Chargement…</option></select></div>

@@ -1,4 +1,4 @@
-/* CLOSER PRO — Calendriers de réservation (onglet Agenda) */
+/* Biznify — Calendriers de réservation (onglet Agenda) */
 window.BC = { list: [], defaultHours: null };
 const BC_DAYS = [["1", "Lundi"], ["2", "Mardi"], ["3", "Mercredi"], ["4", "Jeudi"], ["5", "Vendredi"], ["6", "Samedi"], ["7", "Dimanche"]];
 const bcDur = (m) => (m >= 60 && m % 60 === 0 ? `${m / 60} h` : `${m} min`);

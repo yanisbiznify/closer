@@ -117,7 +117,7 @@ async function layout({ preheader = "", title, intro, html = "", text = "", rows
     ${secondary ? `<p style="margin:0 0 16px;font-size:14px;color:#5B6475">${secondary}</p>` : ""}
     ${note ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:#5B6475">${esc(note)}</p>` : ""}`;
   const footer = audience === "owner"
-    ? `Notification CLOSER PRO · <a href="${base()}/#settings" style="color:#5B6475">Gérer les notifications</a>`
+    ? `Notification Biznify · <a href="${base()}/#settings" style="color:#5B6475">Gérer les notifications</a>`
     : `${esc(b.company)}${b.registration ? " · " + esc(b.registration) : ""}<br><a href="https://${esc(b.website.replace(/^https?:\/\//, ""))}" style="color:#5B6475">${esc(b.website.replace(/^https?:\/\//, ""))}</a>`;
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(title || b.short)}</title></head>
 <body style="margin:0;padding:0;background:#F5F7FB;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif">
@@ -179,7 +179,7 @@ async function bookingCreated(a, lead, cal) {
       title: "Nouveau rendez-vous réservé",
       intro: `${leadName(lead)} vient de réserver sur « ${calName} ».`,
       rows: [["Quand (heure de Paris)", fmtWhen(a.start_at)], ["Chez toi", fmtWhen(a.start_at, tz)], ["Entreprise", lead && lead.company], ["Téléphone", lead && lead.phone], ["Email", a.attendee_email], ["Message", a.notes], a.meet_url ? ["Google Meet", a.meet_url, true] : null],
-      cta: { label: "Ouvrir la fiche dans CLOSER PRO", url: leadLink(lead.id) },
+      cta: { label: "Ouvrir la fiche dans Biznify", url: leadLink(lead.id) },
     });
   }
 }
@@ -267,7 +267,7 @@ async function replyReceived(lead, channel, body) {
     title: `Nouveau message de ${leadName(lead)}`,
     intro: lead.company ? `${lead.company} · ${lead.phone || ""}` : lead.phone || "",
     html: `<div style="border-left:3px solid #E4E7EE;padding:4px 0 4px 14px;margin:0 0 20px;font-size:15px;line-height:1.6;color:#0B1220">${esc(body).replace(/\n/g, "<br>")}</div>`,
-    cta: { label: "Répondre dans CLOSER PRO", url: `${base()}/#conversations` },
+    cta: { label: "Répondre dans Biznify", url: `${base()}/#conversations` },
   });
 }
 
@@ -299,12 +299,12 @@ async function digest(force = false) {
   const pct = goal ? Math.min(100, Math.round((Number(month.rows[0].c) / goal) * 100)) : null;
   html += h2("Ce mois-ci");
   html += `<p style="margin:0 0 6px;font-size:14px;color:#0B1220"><b style="font-size:20px">${euro(Number(month.rows[0].c))}</b>${goal ? ` encaissés sur ${euro(goal)} (${pct} %)` : " encaissés"}</p>`;
-  if (goal) html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px"><tr><td style="background:#E4E7EE;border-radius:6px;height:10px;font-size:0"><div style="width:${pct}%;height:10px;background:#F5B301;border-radius:6px"></div></td></tr></table>`;
+  if (goal) html += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px"><tr><td style="background:#E4E7EE;border-radius:6px;height:10px;font-size:0"><div style="width:${pct}%;height:10px;background:#1877F2;border-radius:6px"></div></td></tr></table>`;
   const today = new Date().toLocaleDateString("fr-FR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" });
   return sendTemplate(to, `Ta journée : ${appts.rows.length} RDV, ${tasks.rows.length} tâche${tasks.rows.length > 1 ? "s" : ""}`, {
     audience: "owner", preheader: `${appts.rows.length} RDV et ${tasks.rows.length} tâches aujourd'hui`,
     title: `Bonjour ${s.prenom || "Yanis"}, voici ta journée`, intro: today.charAt(0).toUpperCase() + today.slice(1), html,
-    cta: { label: "Ouvrir CLOSER PRO", url: `${base()}/` },
+    cta: { label: "Ouvrir Biznify", url: `${base()}/` },
   });
 }
 async function digestTick() {
@@ -346,7 +346,7 @@ api.post("/notifications/test", wrap(async (req, res) => {
       await sendTemplate(to, `[Test] Confirmé : ${cal.name}`, { preheader: "Exemple d'email reçu par ton prospect", title: "Votre rendez-vous est confirmé", intro: "Bonjour Paul,\n\nMerci pour votre réservation. Voici le récapitulatif de notre rendez-vous.", rows: [["Rendez-vous", cal.name], ["Date", `${fmtWhen(a.start_at)} (heure de Paris)`], ["Visio Google Meet", a.meet_url, true]], cta: { label: "Rejoindre la visio", url: a.meet_url }, secondary: `<a href="#" style="color:#0B1220">Ajouter à mon agenda</a> &nbsp;·&nbsp; <a href="#" style="color:#0B1220">Déplacer ou annuler</a>`, note: "Un empêchement ? Utilisez le lien ci-dessus pour choisir un autre créneau, ou répondez simplement à cet email." });
       n.owner.booking = saved;
     } else if (kind === "owner_booking") {
-      await sendTemplate(to, "[Test] Nouveau RDV : Paul Martin (Martin Climatisation)", { audience: "owner", title: "Nouveau rendez-vous réservé", intro: `Paul Martin vient de réserver sur « ${cal.name} ».`, rows: [["Quand (heure de Paris)", fmtWhen(a.start_at)], ["Chez toi", fmtWhen(a.start_at, await ownerTz())], ["Entreprise", sample.company], ["Téléphone", sample.phone], ["Message", a.notes], ["Google Meet", a.meet_url, true]], cta: { label: "Ouvrir CLOSER PRO", url: `${base()}/` } });
+      await sendTemplate(to, "[Test] Nouveau RDV : Paul Martin (Martin Climatisation)", { audience: "owner", title: "Nouveau rendez-vous réservé", intro: `Paul Martin vient de réserver sur « ${cal.name} ».`, rows: [["Quand (heure de Paris)", fmtWhen(a.start_at)], ["Chez toi", fmtWhen(a.start_at, await ownerTz())], ["Entreprise", sample.company], ["Téléphone", sample.phone], ["Message", a.notes], ["Google Meet", a.meet_url, true]], cta: { label: "Ouvrir Biznify", url: `${base()}/` } });
     } else if (kind === "invoice") {
       await sendTemplate(to, "[Test] Facture BZ-2026-0001 : Réceptionniste IA", { preheader: "1 068,00 € · réglable en ligne par carte", title: "Votre facture BZ-2026-0001", intro: "Bonjour Paul,\n\nVeuillez trouver ci-dessous votre facture. Vous pouvez la consulter et la régler en un clic par carte bancaire.", rows: [["Facture", "BZ-2026-0001"], ["Objet", "Réceptionniste IA — mise en place"], ["Montant TTC", "1 068,00 €"], ["Échéance", "25 novembre 2026"]], cta: { label: "Voir et payer 1 068,00 €", url: `${base()}/` }, note: "Paiement sécurisé par Stripe. Une question ? Répondez simplement à cet email." });
     } else return res.status(400).json({ error: "Type de test inconnu" });

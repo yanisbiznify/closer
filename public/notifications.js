@@ -1,4 +1,4 @@
-/* CLOSER PRO — Notifications email (Réglages) */
+/* Biznify — Notifications email (Réglages) */
 const NT_ITEMS = {
   owner: [
     ["booking", "Nouveau RDV réservé", "Dès qu'un prospect réserve sur une de tes pages de réservation."],
