@@ -18,6 +18,7 @@ const mailer = require("./src/mailer");
 const sites = require("./src/sites");
 const activity = require("./src/activity");
 const prospect = require("./src/prospect");
+const mobile = require("./src/mobile");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -271,6 +272,7 @@ api.use(mailer.api);
 api.use(sites.api);
 api.use(activity.api);
 api.use(prospect.api);
+api.use(mobile.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
@@ -313,6 +315,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   await goals.migrate();
   await activity.migrate();
   await prospect.migrate();
+  await mobile.migrate();
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();

@@ -6,6 +6,8 @@ const ACT_ICON = {
   payment: '<path d="M4 10h12M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/>',
   invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   booking: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  reply: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  prospect: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   site_lead: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
 };
 const actIcon = (t) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ACT_ICON[t] || ACT_ICON.invoice}</svg>`;
@@ -84,6 +86,7 @@ async function actPoll() {
     const pays = r.items.filter((x) => x.type === "payment");
     const first = pays[0] || r.items[0];
     toast(pays.length ? `💰 ${eur2(first.amount_cents)} encaissés : ${first.title}` : first.title);
+    if (pays.length && typeof window.confetti === "function") { window.confetti(140); try { navigator.vibrate && navigator.vibrate([30, 50, 30]); } catch (_) {} }
     // on rafraîchit l'écran ouvert pour que tout reste cohérent
     const on = ($("section.view.on") || {}).id || "";
     if (on === "v-dashboard") loadBusiness();

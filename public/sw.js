@@ -1,5 +1,5 @@
 // Service worker minimal : rend l'app installable et garde l'interface disponible hors ligne.
-const CACHE = "biznify-v5";
+const CACHE = "biznify-v6";
 const SHELL = ["/", "/app.css", "/app.js", "/login", "/brand/wordmark.svg", "/brand/icon-192.png", "/brand/mark.svg"];
 
 self.addEventListener("install", (e) => {
@@ -21,4 +21,21 @@ self.addEventListener("fetch", (e) => {
       })
       .catch(() => caches.match(e.request).then((r) => r || caches.match("/")))
   );
+});
+
+// Notifications push (paiements, RDV, réponses…)
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: "Biznify", body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Biznify", {
+    body: d.body || "", tag: d.tag, renotify: true, icon: "/brand/icon-192.png", badge: "/brand/favicon-32.png", data: { url: d.url || "/" }, vibrate: [30, 60, 30],
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    for (const c of cs) { if (c.url.startsWith(self.location.origin)) { c.navigate(url).catch(() => {}); return c.focus(); } }
+    return self.clients.openWindow(url);
+  }));
 });

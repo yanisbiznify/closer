@@ -1,9 +1,9 @@
 {
   "name": "Biznify",
   "short_name": "Biznify",
-  "description": "Appels, prospects, agenda, automatisations et factures au même endroit.",
+  "description": "Ton business dans ta poche : appels, prospects, rendez-vous, factures et paiements.",
   "lang": "fr",
-  "start_url": "/",
+  "start_url": "/#dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -25,6 +25,52 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Appeler mes prospects",
+      "short_name": "Appeler",
+      "url": "/#dialer",
+      "icons": [
+        {
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Nouvelle facture",
+      "short_name": "Facture",
+      "url": "/#billing",
+      "icons": [
+        {
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "url": "/#conversations",
+      "icons": [
+        {
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Trouver des leads",
+      "short_name": "Prospection",
+      "url": "/#prospect",
+      "icons": [
+        {
+          "src": "/brand/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

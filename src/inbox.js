@@ -196,6 +196,7 @@ async function syncEmail() {
             const full = (await q(`SELECT * FROM leads WHERE id=$1`, [lead.id])).rows[0];
             const txt = textOf(m.payload) || m.snippet || "";
             if (full) mailer.fire(() => mailer.replyReceived(full, "email", txt));
+            if (full) require("./activity").log("reply", { leadId: full.id, title: `${full.company || [full.first_name, full.last_name].filter(Boolean).join(" ") || full.name || "Un prospect"} t'a répondu par email`, detail: String(txt).slice(0, 140) });
           }
         }
       }
@@ -233,7 +234,7 @@ hooks.post("/sms", wrap(async (req, res) => {
   await q(`INSERT INTO messages (lead_id, channel, direction, address, body, status, external_id) VALUES ($1,'sms','in',$2,$3,'received',$4) ON CONFLICT (external_id) DO NOTHING`,
     [leadId, from, body, req.body.MessageSid || null]);
   await q(`UPDATE leads SET updated_at=now() WHERE id=$1`, [leadId]);
-  { const lead = (await q(`SELECT * FROM leads WHERE id=$1`, [leadId])).rows[0]; if (lead) mailer.fire(() => mailer.replyReceived(lead, "sms", body)); }
+  { const lead = (await q(`SELECT * FROM leads WHERE id=$1`, [leadId])).rows[0]; if (lead) { mailer.fire(() => mailer.replyReceived(lead, "sms", body)); require("./activity").log("reply", { leadId: lead.id, title: `${lead.company || [lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name || "Un prospect"} t'a répondu par SMS`, detail: String(body || "").slice(0, 140) }); } }
   res.send("<Response/>");
 }));
 hooks.post("/sms-status", wrap(async (req, res) => {

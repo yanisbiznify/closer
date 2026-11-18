@@ -30,7 +30,14 @@ async function log(type, { leadId = null, title, detail = null, amountCents = nu
   try {
     const r = await q(`INSERT INTO activity (type, lead_id, title, detail, amount_cents, ref) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING RETURNING id`,
       [type, leadId || null, String(title).slice(0, 300), detail ? String(detail).slice(0, 1000) : null, amountCents, ref ? String(ref).slice(0, 200) : null]);
-    return r.rows[0] ? r.rows[0].id : null;
+    const id = r.rows[0] ? r.rows[0].id : null;
+    // notification push sur le téléphone pour ce qui compte
+    const PUSH = { payment: "/#revenue", booking: "/#calendar", site_lead: "/#sites", reply: "/#conversations", prospect: "/#pipeline" };
+    if (id && PUSH[type]) {
+      const head = type === "payment" ? `💰 ${euro(amountCents)} encaissés` : type === "booking" ? "📅 Nouveau rendez-vous" : type === "reply" ? "💬 Nouveau message" : type === "site_lead" ? "🌐 Nouvelle demande" : "🎯 Nouveaux prospects";
+      require("./mobile").notify({ title: head, body: [title, detail].filter(Boolean).join(" · ").slice(0, 180), url: leadId ? `/#lead-${leadId}` : PUSH[type], tag: `${type}-${id}` });
+    }
+    return id;
   } catch (e) { console.warn("Activité :", e.message); return null; }
 }
 
