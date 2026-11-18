@@ -12,6 +12,7 @@ const billing = require("./src/billing");
 const revenue = require("./src/revenue");
 const inbox = require("./src/inbox");
 const automations = require("./src/automations");
+const booking = require("./src/booking");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -241,10 +242,12 @@ api.use(billing.api);
 api.use(revenue.api);
 api.use(inbox.api);
 api.use(automations.api);
+api.use(booking.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
 app.use(billing.publicRoutes(authed));
+app.use(booking.publicRoutes());
 
 /* ---------- Front ---------- */
 app.use("/vendor/xlsx", express.static(path.join(__dirname, "node_modules/xlsx/dist"), { maxAge: "7d" }));

@@ -146,6 +146,17 @@ async function createEvent({ title, start, end, email, description, meet, notify
   return mapEvent(e);
 }
 
+// Créneaux occupés de l'agenda principal (pour les pages de réservation)
+async function freeBusy(from, to) {
+  const d = await gapi("/freeBusy", { method: "POST", body: { timeMin: from, timeMax: to, items: [{ id: "primary" }] } });
+  return ((d.calendars && d.calendars.primary && d.calendars.primary.busy) || []).map((b) => ({ start: new Date(b.start), end: new Date(b.end) }));
+}
+
+async function moveEvent(id, start, end, notify) {
+  const e = await gapi(`/calendars/primary/events/${encodeURIComponent(id)}`, { method: "PATCH", body: { start: { dateTime: start }, end: { dateTime: end } }, query: { sendUpdates: notify ? "all" : "none" } });
+  return mapEvent(e);
+}
+
 async function deleteEvent(id, notify) {
   await gapi(`/calendars/primary/events/${encodeURIComponent(id)}`, { method: "DELETE", query: { sendUpdates: notify ? "all" : "none" } });
 }
@@ -181,4 +192,4 @@ async function disconnect() {
   await setStore({});
 }
 
-module.exports = { configured, missing, authUrl, validState, exchangeCode, listEvents, createEvent, deleteEvent, status, disconnect, gmail, getStore, hasGmail };
+module.exports = { configured, missing, authUrl, validState, exchangeCode, listEvents, createEvent, deleteEvent, freeBusy, moveEvent, status, disconnect, gmail, getStore, hasGmail };

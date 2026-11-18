@@ -13,6 +13,7 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); retu
 const span = () => (isMobile() ? 1 : 7);
 
 async function loadCalendar() {
+  if (typeof loadBookingCalendars === "function") loadBookingCalendars();
   if (!CAL.start) CAL.start = isMobile() ? (() => { const x = new Date(); x.setHours(0, 0, 0, 0); return x; })() : mondayOf(new Date());
   try { CAL.status = await api("/google/status"); } catch (e) { CAL.status = { configured: false, connected: false, missing: [] }; }
   renderCalHead();
@@ -167,10 +168,27 @@ function openEvent(e) {
       ${e.attendees.length ? `<div class="field" style="margin-top:16px"><label>Invités</label>${e.attendees.map((a) => `<div class="small">${esc(a.email)} <span class="muted">${{ accepted: "a accepté", declined: "a refusé", tentative: "peut-être", needsAction: "en attente" }[a.status] || ""}</span></div>`).join("")}</div>` : ""}
       ${e.lead ? `<div class="field" style="margin-top:16px"><label>Prospect</label><button class="btn ghost" id="ev-lead">${esc(e.lead.company || e.lead.name || "Ouvrir la fiche")}</button></div>` : ""}
       ${e.description ? `<div class="field" style="margin-top:16px"><label>Notes</label><div class="small" style="white-space:pre-wrap;color:var(--text-2)">${esc(e.description)}</div></div>` : ""}
+      <div id="ev-status"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px"><a class="btn ghost" href="${esc(e.link || "https://calendar.google.com")}" target="_blank" rel="noopener">Ouvrir dans Google Agenda</a><button class="btn danger" id="ev-del">Annuler le rendez-vous</button></div>
     </div>`, async () => true);
   $("#imp-go").style.display = "none"; $("#imp-no").textContent = "Fermer";
   const l = $("#ev-lead"); if (l) l.onclick = () => { $("#imp").classList.remove("on"); openLead(e.leadId); };
+  api(`/calendar/appointments?events=${encodeURIComponent(e.id)}`).then(({ appointments }) => {
+    const a = appointments[0]; if (!a || !$("#ev-status")) return;
+    const lab = { planifie: "Prévu", present: "Présent", absent: "Absent", annule: "Annulé" };
+    const draw = (st) => {
+      $("#ev-status").innerHTML = `<div class="field" style="margin-top:16px"><label>Le prospect est-il venu ?</label>
+        ${a.calendar_name ? `<div class="small muted" style="margin-bottom:8px">Calendrier « ${esc(a.calendar_name)} »${a.source === "booking" ? ", réservé en ligne" : ""}</div>` : ""}
+        <div class="seg ev-st">${["present", "absent"].map((k) => `<button data-st="${k}" class="${st === k ? "on" : ""}">${lab[k]}</button>`).join("")}</div>
+        <div class="small muted" style="margin-top:6px">Le marquer lance les automatisations liées (suite de l'onboarding, relance des absents…).</div></div>`;
+      $$("#ev-status [data-st]").forEach((b) => (b.onclick = async () => {
+        const next = st === b.dataset.st ? "planifie" : b.dataset.st;
+        try { await api(`/calendar/events/${encodeURIComponent(e.id)}/status`, { method: "POST", body: JSON.stringify({ status: next }) }); toast(next === "planifie" ? "Statut retiré" : `Marqué ${lab[next].toLowerCase()}`); draw(next); }
+        catch (err) { toast(err.message); }
+      }));
+    };
+    draw(a.status);
+  }).catch(() => {});
   $("#ev-del").onclick = async () => {
     $("#imp").classList.remove("on");
     if (!(await confirmBox(`Annuler « ${e.title} » ? ${e.attendees.length ? "Les invités seront prévenus par email." : ""}`, "Annuler le rendez-vous"))) return;
@@ -192,6 +210,7 @@ async function openBooking({ lead = null, start = null } = {}) {
   const label = (l) => (l ? `${l.company || l.name || ""}${l.company && l.name ? " — " + l.name : ""} #${l.id}` : "");
   openImport("Nouveau rendez-vous", "Le lien Google Meet est créé automatiquement et l'invitation part au prospect.",
     `<div class="field"><label for="bk-lead">Prospect</label><input id="bk-lead" list="bk-leads" placeholder="Rechercher un prospect…" value="${esc(label(lead))}"><datalist id="bk-leads">${opts}</datalist></div>
+     <div class="field"><label for="bk-cal">Calendrier</label><select id="bk-cal"><option value="">Aucun (RDV libre)</option>${(window.BC && BC.list || []).map((c) => `<option value="${c.id}" data-dur="${c.duration_min}">${esc(c.name)}</option>`).join("")}</select></div>
      <div class="field"><label for="bk-title">Titre</label><input id="bk-title"></div>
      <div class="bk-row">
        <div class="field"><label for="bk-date">Date</label><input type="date" id="bk-date" value="${dateV}"></div>
@@ -211,7 +230,7 @@ async function openBooking({ lead = null, start = null } = {}) {
       const e = new Date(s.getTime() + Number($("#bk-dur").value) * 60000);
       if (isNaN(s)) { toast("Date invalide"); return false; }
       const body = { leadId: l ? l.id : null, title: $("#bk-title").value.trim(), start: s.toISOString(), end: e.toISOString(),
-        email: $("#bk-email").value.trim() || null, description: $("#bk-desc").value.trim(), meet: $("#bk-meet").checked, notify: $("#bk-notify").checked };
+        email: $("#bk-email").value.trim() || null, description: $("#bk-desc").value.trim(), meet: $("#bk-meet").checked, notify: $("#bk-notify").checked, calendarId: $("#bk-cal").value || null };
       const r = await api("/calendar/events", { method: "POST", body: JSON.stringify(body) });
       toast(r.event.meet ? "Rendez-vous créé avec son lien Meet" : "Rendez-vous créé");
       if (l) { l.stage = "rdv"; l.status = "rdv"; document.dispatchEvent(new CustomEvent("lead-updated", { detail: { id: l.id, stage: "rdv", status: "rdv" } })); }
@@ -235,6 +254,11 @@ async function openBooking({ lead = null, start = null } = {}) {
     $("#bk-paris").textContent = isNaN(s) || sameTz() ? "" : `Soit ${parisTime(s)} heure de Paris pour ton prospect.`;
   }
   $("#bk-lead").addEventListener("change", fill); $("#bk-lead").addEventListener("input", fill);
+  $("#bk-cal").onchange = (ev) => {
+    const o = ev.target.selectedOptions[0]; const dur = o && o.dataset.dur;
+    if (dur) { if (![...$("#bk-dur").options].some((x) => x.value === dur)) $("#bk-dur").insertAdjacentHTML("beforeend", `<option value="${dur}">${dur} min</option>`); $("#bk-dur").value = dur; }
+    const t = $("#bk-title"); if (!t.dataset.edited && o && o.value) { const l = pickLead(); t.value = `${o.textContent}${l ? " — " + (l.company || l.name) : ""}`; }
+  };
   $("#bk-title").addEventListener("input", (e) => (e.target.dataset.edited = "1"));
   $("#bk-date").addEventListener("change", paris); $("#bk-time").addEventListener("input", paris);
   fill(); paris();

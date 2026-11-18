@@ -29,6 +29,9 @@ function triggerText(t) {
   if (t.type === "call_outcome") return `Résultat d'appel : ${(t.outcomes || []).map((o) => m.outcomes[o]).join(", ")}`;
   if (t.type === "tag_added") return `Le tag « ${t.tag} » est ajouté`;
   if (t.type === "message_received") return `Le prospect répond${t.channel === "sms" ? " par SMS" : t.channel === "email" ? " par email" : ""}`;
+  const calName = (id) => ((m.calendars || []).find((c) => c.id === Number(id)) || {}).name;
+  if (t.type === "appointment_booked") return t.calendar_id && calName(t.calendar_id) ? `RDV pris sur « ${calName(t.calendar_id)} »` : "RDV pris (tous les calendriers)";
+  if (t.type === "appointment_status") return `RDV marqué ${{ present: "présent", absent: "absent", annule: "annulé" }[t.status]}${t.calendar_id && calName(t.calendar_id) ? ` sur « ${calName(t.calendar_id)} »` : ""}`;
   return (m.triggers[t.type] || {}).label || t.type;
 }
 function stepText(s) {
@@ -208,6 +211,8 @@ function readEditor() {
   if (t.type === "call_outcome") t.outcomes = $$("#ae-t-outs input:checked").map((x) => x.value);
   if (t.type === "tag_added") t.tag = $("#ae-t-tag").value;
   if (t.type === "message_received") t.channel = $("#ae-t-ch").value;
+  if (t.type === "appointment_booked" || t.type === "appointment_status") t.calendar_id = Number($("#ae-t-cal").value) || null;
+  if (t.type === "appointment_status") t.status = $("#ae-t-st").value;
   a.trigger = t;
   $$("#ae-flow .au-step").forEach((li) => {
     const s = a.steps[Number(li.dataset.i)];
@@ -255,6 +260,8 @@ function drawFlow() {
         <div class="au-inl">${`<select id="ae-t-type">${Object.entries(m.triggers).map(([k, v]) => `<option value="${k}" ${t.type === k ? "selected" : ""}>${esc(v.label)}</option>`).join("")}</select>`}
         ${t.type === "stage_changed" ? `<span class="small muted">vers</span><select id="ae-t-to">${m.stages.map((s) => `<option value="${s.id}" ${t.to === s.id ? "selected" : ""}>${esc(s.label)}</option>`).join("")}</select>` : ""}
         ${t.type === "tag_added" ? `<input id="ae-t-tag" placeholder="mot-cle" value="${esc(t.tag || "")}">` : ""}
+        ${t.type === "appointment_status" ? `<select id="ae-t-st">${[["present", "présent"], ["absent", "absent (no-show)"], ["annule", "annulé"]].map(([k, l]) => `<option value="${k}" ${t.status === k ? "selected" : ""}>${l}</option>`).join("")}</select>` : ""}
+        ${t.type === "appointment_booked" || t.type === "appointment_status" ? `<span class="small muted">sur</span><select id="ae-t-cal"><option value="">tous les calendriers</option>${(m.calendars || []).map((c) => `<option value="${c.id}" ${Number(t.calendar_id) === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>` : ""}
         ${t.type === "message_received" ? `<select id="ae-t-ch"><option value="any">SMS ou email</option><option value="sms" ${t.channel === "sms" ? "selected" : ""}>SMS</option><option value="email" ${t.channel === "email" ? "selected" : ""}>Email</option></select>` : ""}</div>
         ${t.type === "call_outcome" ? `<div class="au-outs" id="ae-t-outs">${outs.map(([k, l]) => `<label><input type="checkbox" value="${k}" ${(t.outcomes || []).includes(k) ? "checked" : ""}> ${esc(l)}</label>`).join("")}</div>` : ""}
       </div></li>
@@ -263,7 +270,7 @@ function drawFlow() {
         <button class="btn quiet" data-mv="-1" aria-label="Monter" ${i ? "" : "disabled"}>↑</button><button class="btn quiet" data-mv="1" aria-label="Descendre" ${i < a.steps.length - 1 ? "" : "disabled"}>↓</button><button class="btn quiet" data-rm aria-label="Supprimer l'étape">×</button></span></div>
         ${stepFields(s)}</div></li>`).join("")}
     <li class="au-add"><select id="ae-add" aria-label="Ajouter une étape"><option value="">+ Ajouter une étape</option>${Object.entries(m.steps).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join("")}</select></li>`;
-  $("#ae-t-type").onchange = () => { readEditor(); const ty = $("#ae-t-type").value; AU.edit.trigger = { type: ty, ...(ty === "stage_changed" ? { to: "rdv" } : ty === "call_outcome" ? { outcomes: ["messagerie", "injoignable"] } : ty === "tag_added" ? { tag: "" } : ty === "message_received" ? { channel: "any" } : {}) }; drawFlow(); };
+  $("#ae-t-type").onchange = () => { readEditor(); const ty = $("#ae-t-type").value; AU.edit.trigger = { type: ty, ...(ty === "stage_changed" ? { to: "rdv" } : ty === "call_outcome" ? { outcomes: ["messagerie", "injoignable"] } : ty === "tag_added" ? { tag: "" } : ty === "message_received" ? { channel: "any" } : ty === "appointment_status" ? { status: "present" } : {}) }; drawFlow(); };
   $("#ae-add").onchange = (e) => {
     const ty = e.target.value; if (!ty) return; readEditor();
     const d = { wait: { amount: 1, unit: "days" }, wait_until: { anchor: "appointment_start", offset_minutes: -1440 }, send_sms: { body: "" }, send_email: { subject: "", body: "" }, set_stage: { stage: "rappel" }, add_tag: { tag: "" }, remove_tag: { tag: "" }, add_note: { text: "" }, create_task: { title: "", body: "", due_in_hours: 0 }, condition: { check: "not_replied" } }[ty];

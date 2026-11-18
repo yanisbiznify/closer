@@ -730,3 +730,26 @@ audio{width:100%;height:36px;margin:4px 0 18px;filter:invert(.92) hue-rotate(180
 .ld-tag button{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
 .ld-tag button:hover{color:var(--text)}
 #ld-tag-in{width:110px;padding:4px 10px;font-size:12.5px;border-radius:99px}
+
+/* ---------- Calendriers de réservation ---------- */
+.bc-panel{margin-top:20px}
+.bc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:16px}
+.bc-card{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--raised)}
+.bc-card.off{opacity:.65}
+.bc-top{display:flex;align-items:center;gap:8px}
+.bc-top b{color:var(--text);font-weight:600}
+.bc-dot{width:10px;height:10px;border-radius:50%;flex:none}
+.bc-url input{font-size:12px;color:var(--text-2);margin-top:6px}
+.bc-act{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.bce-slug{display:flex;align-items:center;gap:6px}
+.bce-slug span{color:var(--mut);font-size:13px}
+.bce-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 14px}
+.bce-hours{display:flex;flex-direction:column;gap:8px}
+.bce-day{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line-soft)}
+.bce-ranges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bce-range{display:inline-flex;align-items:center;gap:4px}
+.bce-range input{width:auto;padding:6px 8px}
+.ev-st button{min-width:90px}
+@media (max-width:760px){.bce-grid{grid-template-columns:1fr 1fr}}
+.bce-day>label.au-opt{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:500;color:var(--text)}
+.au-opt input[type=checkbox],.bk-chk input[type=checkbox]{width:16px;height:16px;flex:none;margin:0}

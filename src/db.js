@@ -259,15 +259,46 @@ async function migrateAutomations() {
     DROP TRIGGER IF EXISTS closer_ev_messages ON messages;
     CREATE TRIGGER closer_ev_messages AFTER INSERT ON messages FOR EACH ROW EXECUTE FUNCTION closer_ev_messages();
 
+    CREATE TABLE IF NOT EXISTS booking_calendars (
+      id            SERIAL PRIMARY KEY,
+      slug          TEXT NOT NULL UNIQUE,
+      name          TEXT NOT NULL,
+      description   TEXT,
+      duration_min  INTEGER NOT NULL DEFAULT 30,
+      interval_min  INTEGER NOT NULL DEFAULT 30,
+      buffer_min    INTEGER NOT NULL DEFAULT 0,
+      notice_hours  INTEGER NOT NULL DEFAULT 2,
+      days_ahead    INTEGER NOT NULL DEFAULT 30,
+      max_per_day   INTEGER,
+      hours         JSONB NOT NULL DEFAULT '{}',
+      timezone      TEXT NOT NULL DEFAULT 'Europe/Paris',
+      event_title   TEXT,
+      thanks        TEXT,
+      consent       TEXT,
+      color         TEXT NOT NULL DEFAULT '#1877F2',
+      meet          BOOLEAN NOT NULL DEFAULT true,
+      active        BOOLEAN NOT NULL DEFAULT true,
+      ghl_id        TEXT,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS calendar_id INTEGER REFERENCES booking_calendars(id) ON DELETE SET NULL;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS manage_token TEXT;
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'app';
+    ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS appointments_manage_token ON appointments (manage_token) WHERE manage_token IS NOT NULL;
+
     CREATE OR REPLACE FUNCTION closer_ev_appointments() RETURNS trigger AS $f$
     BEGIN
-      IF NEW.lead_id IS NOT NULL THEN
-        INSERT INTO automation_events (type, lead_id, data) VALUES ('appointment_booked', NEW.lead_id, jsonb_build_object('appointment_id', NEW.id));
+      IF NEW.lead_id IS NULL THEN RETURN NEW; END IF;
+      IF TG_OP = 'INSERT' THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('appointment_booked', NEW.lead_id, jsonb_build_object('appointment_id', NEW.id, 'calendar_id', NEW.calendar_id));
+      ELSIF NEW.status IS DISTINCT FROM OLD.status THEN
+        INSERT INTO automation_events (type, lead_id, data) VALUES ('appointment_status', NEW.lead_id, jsonb_build_object('appointment_id', NEW.id, 'calendar_id', NEW.calendar_id, 'status', NEW.status));
       END IF;
       RETURN NEW;
     END $f$ LANGUAGE plpgsql;
     DROP TRIGGER IF EXISTS closer_ev_appointments ON appointments;
-    CREATE TRIGGER closer_ev_appointments AFTER INSERT ON appointments FOR EACH ROW EXECUTE FUNCTION closer_ev_appointments();
+    CREATE TRIGGER closer_ev_appointments AFTER INSERT OR UPDATE ON appointments FOR EACH ROW EXECUTE FUNCTION closer_ev_appointments();
 
     CREATE OR REPLACE FUNCTION closer_ev_invoices() RETURNS trigger AS $f$
     BEGIN

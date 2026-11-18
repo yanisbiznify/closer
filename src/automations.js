@@ -14,7 +14,8 @@ const TRIGGERS = {
   lead_created: { label: "Nouveau prospect ajouté" },
   stage_changed: { label: "Le prospect change d'étape", fields: ["to"] },
   call_outcome: { label: "Résultat d'un appel", fields: ["outcomes"] },
-  appointment_booked: { label: "RDV pris dans l'agenda" },
+  appointment_booked: { label: "RDV pris (agenda ou page de réservation)", fields: ["calendar_id"] },
+  appointment_status: { label: "RDV marqué présent, absent ou annulé", fields: ["status", "calendar_id"] },
   message_received: { label: "Le prospect répond (SMS ou email)", fields: ["channel"] },
   tag_added: { label: "Tag ajouté au prospect", fields: ["tag"] },
   invoice_created: { label: "Facture créée" },
@@ -48,7 +49,7 @@ const CONDITIONS = {
   appointment_upcoming: "a un RDV à venir",
   no_appointment_upcoming: "n'a pas de RDV à venir",
 };
-const VARIABLES = ["prénom", "nom", "entreprise", "téléphone", "email", "ton_prénom", "date_rdv", "heure_rdv", "lien_meet", "numéro_facture", "montant_facture", "lien_facture", "échéance_facture"];
+const VARIABLES = ["prénom", "nom", "entreprise", "téléphone", "email", "ton_prénom", "date_rdv", "heure_rdv", "lien_meet", "lien_gestion_rdv", "numéro_facture", "montant_facture", "lien_facture", "échéance_facture", "lien_reservation:SLUG"];
 const STAGE_IDS = STAGES.map((s) => s.id);
 
 /* ---------- Nettoyage d'une automatisation (éditeur ou IA) ---------- */
@@ -63,6 +64,8 @@ function cleanTrigger(t) {
   if (type === "call_outcome" && !out.outcomes.length) out.outcomes = ["messagerie", "injoignable"];
   if (type === "message_received") out.channel = ["sms", "email"].includes(t.channel) ? t.channel : "any";
   if (type === "tag_added") out.tag = tagOf(t.tag) || "tag";
+  if (type === "appointment_booked" || type === "appointment_status") out.calendar_id = Number(t.calendar_id) || null;
+  if (type === "appointment_status") out.status = ["present", "absent", "annule"].includes(t.status) ? t.status : "present";
   return out;
 }
 function cleanStep(s, i) {
@@ -105,8 +108,8 @@ const fmtTime = (d) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit"
 const euro = (c) => ((c || 0) / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
 async function appointmentFor(run) {
-  if (run.context.appointment_id) {
-    const r = (await q(`SELECT * FROM appointments WHERE id=$1`, [run.context.appointment_id])).rows[0];
+  if (run.context.appointment_id || run.context.appointment_ref) {
+    const r = (await q(`SELECT * FROM appointments WHERE id=$1`, [run.context.appointment_id || run.context.appointment_ref])).rows[0];
     if (r) return r;
   }
   return (await q(`SELECT * FROM appointments WHERE lead_id=$1 AND status <> 'annule' AND start_at > now() - interval '2 hours' ORDER BY start_at LIMIT 1`, [run.lead_id])).rows[0] || null;
@@ -122,17 +125,19 @@ async function render(text, lead, run) {
   if (!text) return "";
   const s = await getSettings();
   const need = (k) => text.includes("{" + k + "}");
-  const appt = need("date_rdv") || need("heure_rdv") || need("lien_meet") ? await appointmentFor(run) : null;
+  const appt = need("date_rdv") || need("heure_rdv") || need("lien_meet") || need("lien_gestion_rdv") ? await appointmentFor(run) : null;
   const inv = ["numéro_facture", "montant_facture", "lien_facture", "échéance_facture"].some(need) ? await invoiceFor(run) : null;
   const first = lead.first_name || (lead.name || "").split(" ")[0] || "";
   const vals = {
     "prénom": first, nom: lead.last_name || "", entreprise: lead.company || "", "téléphone": lead.phone || "", email: lead.email || "",
     "ton_prénom": s.prenom || "Yanis",
     date_rdv: appt ? fmtDate(appt.start_at) : "", heure_rdv: appt ? fmtTime(appt.start_at) : "", lien_meet: appt && appt.meet_url ? appt.meet_url : "",
+    lien_gestion_rdv: appt && appt.manage_token ? `${tw.publicUrl() || ""}/r/m/${appt.manage_token}` : "",
     "numéro_facture": inv ? inv.number : "", montant_facture: inv ? euro(inv.total_cents) : "",
     lien_facture: inv ? `${tw.publicUrl() || ""}/facture/${inv.token}` : "", "échéance_facture": inv && inv.due_date ? fmtDate(inv.due_date) : "",
   };
-  return text.replace(/\{([a-zàâçéèêëîïôûùüÿ_]+)\}/gi, (m, k) => (k in vals ? vals[k] : m))
+  return text.replace(/\{lien_reservation:([a-z0-9-]+)\}/gi, (m, slug) => `${tw.publicUrl() || ""}/r/${slug.toLowerCase()}`)
+    .replace(/\{([a-zàâçéèêëîïôûùüÿ_]+)\}/gi, (m, k) => (k in vals ? vals[k] : m))
     .replace(/Bonjour ,/g, "Bonjour,").replace(/ {2,}/g, " ");
 }
 
@@ -297,6 +302,8 @@ function matches(trigger, ev) {
   if (ev.type === "call_outcome") return (trigger.outcomes || []).includes(d.outcome);
   if (ev.type === "message_received") return !trigger.channel || trigger.channel === "any" || trigger.channel === d.channel;
   if (ev.type === "tag_added") return trigger.tag === d.tag;
+  if (ev.type === "appointment_booked") return !trigger.calendar_id || Number(trigger.calendar_id) === Number(d.calendar_id);
+  if (ev.type === "appointment_status") return trigger.status === d.status && (!trigger.calendar_id || Number(trigger.calendar_id) === Number(d.calendar_id));
   return true;
 }
 
@@ -320,7 +327,7 @@ async function tick() {
         for (const a of autos) {
           if (!matches(a.trigger, ev)) continue;
           const ctx = {};
-          if (ev.data.appointment_id) ctx.appointment_id = ev.data.appointment_id;
+          if (ev.data.appointment_id) ctx[ev.type === "appointment_booked" ? "appointment_id" : "appointment_ref"] = ev.data.appointment_id;
           if (ev.data.invoice_id) ctx.invoice_id = ev.data.invoice_id;
           await enroll(a, ev.lead_id, ctx).catch((e) => console.warn("Automatisation :", e.message));
         }
@@ -364,14 +371,37 @@ const TEMPLATES = {
      { type: "remove_tag", tag: "nurture-8-semaines" },
      { type: "set_stage", stage: "nouveau" },
      { type: "add_note", text: "Revenu dans la file d'appels après 8 semaines sans contact." }]),
-  rdv_confirm: T("RDV pris — confirmation et rappels", "Confirme le RDV par SMS et email, puis rappelle le prospect la veille et 1 heure avant. Réduit les no-shows.",
-    { type: "appointment_booked" },
+  rdv_confirm: T("RDV de vente — confirmation et rappels", "Calendrier « Biznify - Turn Leads into Sales ». Confirme le RDV par SMS et email, puis rappelle le prospect la veille et 1 heure avant.",
+    { type: "appointment_booked", calendar_slug: "biznifymeeting" },
     [{ type: "send_sms", body: "Bonjour {prénom}, c'est confirmé : on se voit {date_rdv} à {heure_rdv} en visio. Le lien : {lien_meet} À très vite, {ton_prénom} de Biznify" },
-     { type: "send_email", subject: "Notre rendez-vous {date_rdv} à {heure_rdv}", body: "Bonjour {prénom},\n\nMerci pour notre échange. Je vous confirme notre rendez-vous {date_rdv} à {heure_rdv}, en visio Google Meet :\n{lien_meet}\n\nEn 30 minutes, je vous montre comment notre IA répond à vos appels, qualifie vos clients et remplit votre agenda, même quand vous êtes sur un chantier.\n\nÀ très vite,\n{ton_prénom}\nBiznify" },
+     { type: "send_email", subject: "Notre rendez-vous {date_rdv} à {heure_rdv}", body: "Bonjour {prénom},\n\nMerci pour votre réservation. Je vous confirme notre rendez-vous {date_rdv} à {heure_rdv}, en visio Google Meet :\n{lien_meet}\n\nOn fera le point sur la façon dont vous recevez et traitez vos demandes clients, et on verra ce qui peut être automatisé pour n'en perdre aucune.\n\nUn empêchement ? Déplacez ou annulez ici : {lien_gestion_rdv}\n\nÀ très vite,\n{ton_prénom}\nBiznify" },
      { type: "wait_until", anchor: "appointment_start", offset_minutes: -1440 },
-     { type: "send_sms", body: "Bonjour {prénom}, petit rappel de notre RDV demain à {heure_rdv}. Le lien : {lien_meet} Un empêchement ? Répondez à ce SMS." },
+     { type: "send_sms", body: "Bonjour {prénom}, petit rappel de notre RDV demain à {heure_rdv}. Le lien : {lien_meet} Un empêchement ? {lien_gestion_rdv}" },
      { type: "wait_until", anchor: "appointment_start", offset_minutes: -60 },
      { type: "send_sms", body: "{prénom}, on se retrouve dans 1 heure ({heure_rdv}) : {lien_meet} À tout de suite !" }],
+    { stop_on_reply: false }),
+  rdv_no_show: T("RDV de vente — prospect absent (no-show)", "Remplace l'étape GHL « No Showed to Zoom ». Quand tu marques le RDV « Absent » dans l'agenda : SMS avec le lien pour reprendre RDV, passage en « À rappeler » et tâche pour le rappeler.",
+    { type: "appointment_status", status: "absent", calendar_slug: "biznifymeeting" },
+    [{ type: "send_sms", body: "Bonjour {prénom}, on devait se voir aujourd'hui à {heure_rdv}, je pense qu'on s'est manqué. Pas de souci : choisissez un nouveau créneau ici {lien_reservation:biznifymeeting} {ton_prénom}, Biznify" },
+     { type: "set_stage", stage: "rappel" },
+     { type: "create_task", title: "Rappeler {prénom} ({entreprise}) : absent au RDV", body: "No-show sur le RDV de vente.", due_in_hours: 2 }],
+    { stop_on_reply: true }),
+  lancement_confirm: T("Appel de lancement — confirmation et rappels", "Calendrier « Appel de lancement Biznify ». Confirme l'appel, rappelle de remplir le questionnaire, puis rappels la veille et 1 heure avant.",
+    { type: "appointment_booked", calendar_slug: "lancementia" },
+    [{ type: "add_tag", tag: "lancement-reserve" },
+     { type: "send_email", subject: "Votre appel de lancement {date_rdv} à {heure_rdv}", body: "Bonjour {prénom},\n\nVotre appel de lancement est réservé : {date_rdv} à {heure_rdv}, en visio :\n{lien_meet}\n\nPendant 30 minutes, on valide votre questionnaire, on règle les accès et on fixe les dates de test et de mise en ligne de votre réceptionniste IA.\nPensez à remplir le questionnaire avant l'appel si ce n'est pas déjà fait.\n\nUn empêchement ? {lien_gestion_rdv}\n\n{ton_prénom}\nBiznify" },
+     { type: "wait_until", anchor: "appointment_start", offset_minutes: -1440 },
+     { type: "send_sms", body: "Bonjour {prénom}, rappel : notre appel de lancement est demain à {heure_rdv}. Le lien : {lien_meet} {ton_prénom}" },
+     { type: "wait_until", anchor: "appointment_start", offset_minutes: -60 },
+     { type: "send_sms", body: "{prénom}, notre appel de lancement commence dans 1 heure : {lien_meet}" }],
+    { stop_on_reply: false }),
+  livraison_confirm: T("Livraison de l'espace Biznify — confirmation et rappels", "Calendrier « Livraison de votre espace Biznify ». Confirme le RDV de livraison et rappelle le client la veille et 1 heure avant.",
+    { type: "appointment_booked", calendar_slug: "livraison-de-votre-espace-biznify" },
+    [{ type: "send_email", subject: "Livraison de votre espace Biznify : {date_rdv} à {heure_rdv}", body: "Bonjour {prénom},\n\nVotre rendez-vous de livraison est confirmé : {date_rdv} à {heure_rdv}, en visio :\n{lien_meet}\n\nNous vous présenterons votre espace Biznify et la façon dont tout fonctionne.\n\nUn empêchement ? {lien_gestion_rdv}\n\n{ton_prénom}\nBiznify" },
+     { type: "wait_until", anchor: "appointment_start", offset_minutes: -1440 },
+     { type: "send_sms", body: "Bonjour {prénom}, rappel : la livraison de votre espace Biznify, c'est demain à {heure_rdv}. Le lien : {lien_meet} {ton_prénom}" },
+     { type: "wait_until", anchor: "appointment_start", offset_minutes: -60 },
+     { type: "send_sms", body: "{prénom}, on se retrouve dans 1 heure pour la livraison de votre espace : {lien_meet}" }],
     { stop_on_reply: false }),
   invoice_reminders: T("Facture — relances de paiement", "Relance automatiquement une facture non payée après l'échéance, par email puis par SMS, et te crée une tâche si elle reste impayée.",
     { type: "invoice_created" },
@@ -408,11 +438,12 @@ const TEMPLATES = {
     [{ type: "add_note", text: "Questionnaire d'onboarding reçu." },
      { type: "create_task", title: "Dossier du numéro français : {entreprise}", body: "Questionnaire reçu, lancer la demande de numéro.", due_in_hours: 0 },
      { type: "condition", check: "no_appointment_upcoming" },
-     { type: "send_sms", body: "Merci {prénom}, questionnaire bien reçu ! Prochaine étape : notre appel de lancement (30 min). Réservez votre créneau ici : [LIEN DE RÉSERVATION] {ton_prénom}" }],
+     { type: "send_sms", body: "Merci {prénom}, questionnaire bien reçu ! Prochaine étape : notre appel de lancement (30 min). Réservez votre créneau ici : {lien_reservation:lancementia} {ton_prénom}" }],
     { stop_on_reply: false }),
-  onboarding_3: T("Onboarding 3 — Après l'appel de lancement", "Recréé depuis GHL. Ajoute le tag « appel-lancement-fait » : tâche pour envoyer le récap, puis passage en construction.",
-    { type: "tag_added", tag: "appel-lancement-fait" },
-    [{ type: "create_task", title: "Envoyer le récap à {prénom} et fixer les dates", body: "Appel de lancement fait.", due_in_hours: 0 },
+  onboarding_3: T("Onboarding 3 — Après l'appel de lancement", "Recréé depuis GHL. Quand tu marques l'appel de lancement « Présent » dans l'agenda : tâche pour envoyer le récap, puis passage en construction.",
+    { type: "appointment_status", status: "present", calendar_slug: "lancementia" },
+    [{ type: "add_tag", tag: "appel-lancement-fait" },
+     { type: "create_task", title: "Envoyer le récap à {prénom} et fixer les dates", body: "Appel de lancement fait.", due_in_hours: 0 },
      { type: "wait", amount: 1, unit: "hours" },
      { type: "add_tag", tag: "en-construction" }],
     { stop_on_reply: false }),
@@ -446,7 +477,8 @@ Format :
 
 Déclencheurs (trigger.type) :
 ${Object.entries(TRIGGERS).map(([k, v]) => `- ${k} : ${v.label}`).join("\n")}
-Paramètres : stage_changed → "to" (étape) ; call_outcome → "outcomes" (liste) ; message_received → "channel" ("sms" | "email" | "any") ; tag_added → "tag".
+Paramètres : stage_changed → "to" (étape) ; call_outcome → "outcomes" (liste) ; message_received → "channel" ("sms" | "email" | "any") ; tag_added → "tag" ; appointment_booked → "calendar_id" (facultatif) ; appointment_status → "status" ("present" | "absent" | "annule") et "calendar_id" (facultatif).
+Calendriers de réservation : ${(await q(`SELECT id, name, slug FROM booking_calendars ORDER BY created_at`)).rows.map((c) => `${c.id} = « ${c.name} » (lien de réservation : {lien_reservation:${c.slug}})`).join(" ; ") || "aucun"}
 
 Étapes du pipeline : ${STAGES.map((x) => `${x.id} (${x.label})`).join(", ")}
 Résultats d'appel : ${Object.entries(OUTCOMES).map(([k, v]) => `${k} (${v.label})`).join(", ")}
@@ -488,12 +520,13 @@ Règles :
 /* ---------- API ---------- */
 const api = express.Router();
 
-api.get("/automations/meta", (req, res) => {
-  res.json({ triggers: TRIGGERS, steps: STEPS, conditions: CONDITIONS, variables: VARIABLES, stages: STAGES,
+api.get("/automations/meta", wrap(async (req, res) => {
+  const cals = (await q(`SELECT id, name, slug FROM booking_calendars ORDER BY created_at`)).rows;
+  res.json({ calendars: cals, triggers: TRIGGERS, steps: STEPS, conditions: CONDITIONS, variables: VARIABLES, stages: STAGES,
     outcomes: Object.fromEntries(Object.entries(OUTCOMES).map(([k, v]) => [k, v.label])),
     templates: Object.entries(TEMPLATES).map(([key, t]) => ({ key, name: t.name, description: t.description })),
     ai: !!config.anthropicApiKey });
-});
+}));
 
 api.get("/automations", wrap(async (req, res) => {
   const r = await q(`SELECT a.*,
@@ -555,10 +588,24 @@ api.post("/automations/runs/:runId/stop", wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+async function resolveTemplate(t) {
+  const copy = JSON.parse(JSON.stringify(t));
+  if (copy.trigger.calendar_slug) {
+    const c = (await q(`SELECT id FROM booking_calendars WHERE slug=$1`, [copy.trigger.calendar_slug])).rows[0];
+    copy.trigger.calendar_id = c ? c.id : null;
+  }
+  return cleanAutomation(copy);
+}
 api.post("/automations/templates/:key", wrap(async (req, res) => {
   const t = TEMPLATES[req.params.key];
   if (!t) return res.status(404).json({ error: "Modèle introuvable" });
-  const a = cleanAutomation(t);
+  const a = await resolveTemplate(t);
+  const ex = (await q(`SELECT id FROM automations WHERE template=$1 ORDER BY id LIMIT 1`, [req.params.key])).rows[0];
+  if (ex && req.query.replace === "1") {
+    const r = await q(`UPDATE automations SET name=$2, description=$3, trigger=$4, steps=$5, options=$6, updated_at=now() WHERE id=$1 RETURNING *`,
+      [ex.id, a.name, a.description, a.trigger, JSON.stringify(a.steps), a.options]);
+    return res.json({ automation: r.rows[0], replaced: true });
+  }
   const r = await q(`INSERT INTO automations (name, description, trigger, steps, options, enabled, template) VALUES ($1,$2,$3,$4,$5,false,$6) RETURNING *`,
     [a.name, a.description, a.trigger, JSON.stringify(a.steps), a.options, req.params.key]);
   res.json({ automation: r.rows[0] });

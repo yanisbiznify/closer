@@ -64,8 +64,8 @@ api.post("/calendar/events", async (req, res) => {
       meet: b.meet !== false, notify: b.notify !== false, leadId,
     });
     await q(
-      `INSERT INTO appointments (lead_id, google_event_id, title, start_at, end_at, meet_url, attendee_email) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [leadId, ev.id, title, start, end, ev.meet, email]
+      `INSERT INTO appointments (lead_id, google_event_id, title, start_at, end_at, meet_url, attendee_email, calendar_id, manage_token) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [leadId, ev.id, title, start, end, ev.meet, email, parseInt(b.calendarId) || null, require("crypto").randomBytes(18).toString("base64url")]
     );
     let ghlResult = null;
     if (lead) {
@@ -90,7 +90,8 @@ api.post("/calendar/events", async (req, res) => {
 api.delete("/calendar/events/:id", async (req, res) => {
   try {
     await google.deleteEvent(req.params.id, req.query.notify !== "0");
-    await q(`UPDATE appointments SET status='annule' WHERE google_event_id=$1`, [req.params.id]);
+    const r = await q(`UPDATE appointments SET status='annule' WHERE google_event_id=$1 RETURNING id`, [req.params.id]);
+    for (const a of r.rows) await q(`UPDATE automation_runs SET status='stopped', ended_at=now() WHERE status='active' AND (context->>'appointment_id')::int = $1`, [a.id]);
     res.json({ ok: true });
   } catch (e) { fail(res, e); }
 });
