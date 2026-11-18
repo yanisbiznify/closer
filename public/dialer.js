@@ -234,7 +234,7 @@ function renderLists() {
   $("#lists").innerHTML = D.lists.length
     ? `<table class="table"><thead><tr><th>Liste</th><th class="hide-m">Source</th><th>Prospects</th><th class="hide-m">À appeler</th><th class="hide-m">RDV</th><th class="r"></th></tr></thead><tbody>
       ${D.lists.map((l) => `<tr data-list="${l.id}"><td class="who"><b>${esc(l.name)}</b><span>Créée le ${esc(fmtDate(l.created_at))}</span></td>
-        <td class="hide-m">${l.source === "ghl" ? `<span class="badge">GHL${l.source_ref ? " : " + esc(l.source_ref) : ""}</span>` : `<span class="badge">CSV</span>`}</td>
+        <td class="hide-m">${l.source === "ghl" ? `<span class="badge">GHL${l.source_ref ? (String(l.source_ref).startsWith("pipeline:") ? " · pipeline" : " : " + esc(l.source_ref)) : ""}</span>` : `<span class="badge">CSV</span>`}</td>
         <td class="num">${l.total}</td><td class="hide-m num">${l.a_appeler}</td><td class="hide-m num c-good">${l.rdv || ""}</td>
         <td class="r nowrap"><button class="btn ghost" data-dial="${l.id}" style="padding:5px 10px">Appeler</button> <button class="btn quiet" data-del="${l.id}" style="padding:5px 8px">Supprimer</button></td></tr>`).join("")}</tbody></table>`
     : emptyState("Aucune liste pour l'instant", "Importe tes contacts GoHighLevel par tag, ou un fichier CSV.");
