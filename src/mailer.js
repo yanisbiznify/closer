@@ -227,8 +227,9 @@ async function invoicePaid(inv) {
       title: "Merci, paiement bien reçu",
       intro: `Bonjour ${(c.name || "").split(" ")[0] || ""},\n\nNous confirmons la bonne réception de votre paiement. Merci pour votre confiance !`.replace("Bonjour ,", "Bonjour,"),
       rows: [["Facture", inv.number], ["Montant réglé", euro(inv.total_cents)], ["Date", fmtWhen(inv.paid_at || new Date())]],
-      cta: { label: "Voir ma facture", url },
-      note: "Vous pouvez télécharger votre facture en PDF depuis ce lien à tout moment.",
+      cta: { label: "Télécharger ma facture (PDF)", url: `${url}/pdf` },
+      secondary: `<a href="${esc(url)}" style="color:#0B1220">Voir la facture en ligne</a>`,
+      note: "Votre facture acquittée reste disponible à tout moment depuis ce lien.",
     });
   }
   if (n.owner.payment) {

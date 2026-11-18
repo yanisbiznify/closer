@@ -7,6 +7,7 @@ const { q } = require("./db");
 const stripe = require("./stripe");
 const tw = require("./twilio");
 const mailer = require("./mailer");
+const invoicePdf = require("./invoice-pdf");
 
 const DEFAULT_BILLING = {
   company: "Biznify Technologies Ltd",
@@ -242,7 +243,11 @@ api.post("/invoices/:id/payment-link", async (req, res) => {
 
 // Connexion Stripe depuis l'app (sans passer par Railway)
 api.post("/stripe/connect", async (req, res) => {
-  try { res.json({ stripe: await stripe.connect(req.body && req.body.key) }); }
+  try { res.json({ stripe: await stripe.connect(req.body && req.body.key, req.body && req.body.publishableKey) }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+api.post("/stripe/publishable", async (req, res) => {
+  try { res.json({ stripe: await stripe.setPublishable(req.body && req.body.publishableKey) }); }
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 api.post("/stripe/disconnect", async (req, res) => {
@@ -328,11 +333,14 @@ function page(inv, b, flash) {
   const overdue = !paid && !cancelled && inv.due_date && new Date(inv.due_date) < new Date(new Date().toDateString());
   const status = paid ? `<span class="st ok">Payée${inv.paid_at ? " le " + day(inv.paid_at) : ""}</span>` : cancelled ? `<span class="st off">Annulée</span>` : overdue ? `<span class="st late">En retard</span>` : `<span class="st due">À payer</span>`;
   const canPay = !paid && !cancelled && stripe.enabled();
+  const inPage = canPay && !!stripe.publishableKey();
+  const pdf = `/facture/${esc(inv.token)}/pdf`;
   const payBox = paid
-    ? `<div class="paybox done"><div><b>Merci, cette facture est réglée.</b><p>Paiement de ${money(inv.total_cents, inv.currency)} reçu${inv.paid_at ? " le " + day(inv.paid_at) : ""}.</p></div></div>`
+    ? `<div class="paybox done"><div><b>Merci, cette facture est réglée.</b><p>Paiement de ${money(inv.total_cents, inv.currency)} reçu${inv.paid_at ? " le " + day(inv.paid_at) : ""}.</p></div><a class="dl" href="${pdf}">Télécharger la facture (PDF)</a></div>`
     : cancelled ? `<div class="paybox"><div><b>Cette facture a été annulée.</b><p>Aucun paiement n'est demandé.</p></div></div>`
     : `<div class="paybox"><div><span class="lbl">Montant à régler</span><span class="big">${money(inv.total_cents, inv.currency)}</span>${inv.due_date ? `<p>Échéance : ${day(inv.due_date)}</p>` : ""}</div>
-       ${canPay ? `<form method="post" action="/facture/${esc(inv.token)}/payer"><button class="pay" type="submit">Payer ${money(inv.total_cents, inv.currency)}</button><p class="secure">Paiement sécurisé par carte bancaire avec Stripe</p></form>` : `<p class="secure">Le paiement en ligne n'est pas encore disponible. Contacte ${esc(b.email || b.company)}.</p>`}</div>`;
+       ${canPay ? `<form method="post" action="/facture/${esc(inv.token)}/payer" id="payform"><button class="pay" type="submit" id="paybtn">Payer ${money(inv.total_cents, inv.currency)}</button><p class="secure">Paiement sécurisé par carte bancaire avec Stripe</p></form>` : `<p class="secure">Le paiement en ligne n'est pas encore disponible. Contacte ${esc(b.email || b.company)}.</p>`}</div>
+       ${inPage ? `<div id="checkout" class="checkout" hidden></div>` : ""}`;
   const fromLines = [b.address, b.registration, b.vatNumber ? "N° TVA : " + b.vatNumber : "", [b.email, b.phone].filter(Boolean).join(" · "), b.website].filter(Boolean);
   const toLines = [c.company && c.name ? c.name : "", c.address, c.vat ? "N° TVA : " + c.vat : "", c.email].filter(Boolean);
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -385,9 +393,13 @@ th:not(:last-child),td:not(:last-child){padding-right:8px}
 .notes b{color:var(--ink);font-weight:600;display:block;margin-bottom:2px}
 .foot{padding:20px 44px 28px;border-top:1px solid var(--line);font-size:12px;color:var(--mut)}
 .tools{display:flex;justify-content:center;gap:10px;margin-top:18px}
-.tools button{appearance:none;background:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:10px 16px;font:500 13.5px Inter,system-ui,sans-serif;cursor:pointer}
+.dl{display:inline-block;background:#11643C;color:#fff;text-decoration:none;font:600 14px Inter,system-ui,sans-serif;padding:12px 18px;border-radius:10px;white-space:nowrap}
+.dl:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.checkout{margin:0 44px 28px;min-height:120px}
+.tools a,.tools button{text-decoration:none;appearance:none;background:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:10px 16px;font:500 13.5px Inter,system-ui,sans-serif;cursor:pointer}
 @media (max-width:680px){.top{flex-direction:column;padding:28px 22px 4px}.meta{text-align:left}.parties{grid-template-columns:1fr;padding:22px}.title{padding:20px 22px 0}th,td{padding-left:22px;padding-right:22px}.hide-s{display:none}.sum{padding:16px 22px 6px}.sum dl{min-width:0;width:100%}.vatm,.notes{padding-left:22px;padding-right:22px}.paybox{margin:22px;flex-direction:column;align-items:stretch;text-align:center}.pay{width:100%}.foot{padding:18px 22px 24px}}
-@media print{body{background:#fff}.wrap{padding:0;max-width:none}.paper{border:0;box-shadow:none;border-radius:0}.paybox form,.tools,.flash{display:none}.paybox{background:#fff}}
+@media (max-width:680px){.checkout{margin:0 12px 22px}.dl{width:100%;text-align:center}}
+@media print{body{background:#fff}.wrap{padding:0;max-width:none}.paper{border:0;box-shadow:none;border-radius:0}.paybox form,.tools,.flash,.checkout,.dl{display:none}.paybox{background:#fff}}
 </style></head><body><main class="wrap">
 ${flash ? `<div class="flash${flash.warn ? " warn" : ""}" role="status">${esc(flash.text)}</div>` : ""}
 <article class="paper" aria-label="Facture ${esc(inv.number)}">
@@ -409,8 +421,45 @@ ${payBox}
 ${inv.notes || b.paymentTerms ? `<div class="notes">${inv.notes ? `<p><b>Note</b>${nl(inv.notes)}</p>` : ""}${b.paymentTerms ? `<p><b>Conditions de paiement</b>${nl(b.paymentTerms)}</p>` : ""}</div>` : ""}
 <footer class="foot">${esc([b.company, b.registration, b.footer].filter(Boolean).join(" — "))}</footer>
 </article>
-<div class="tools"><button type="button" onclick="window.print()">Télécharger en PDF</button></div>
-</main></body></html>`;
+<div class="tools"><a href="${pdf}">Télécharger la facture (PDF)</a></div>
+</main>
+${inPage ? `<script src="https://js.stripe.com/v3/"></script>
+<script>
+(function(){
+  var form=document.getElementById("payform"),btn=document.getElementById("paybtn"),box=document.getElementById("checkout");
+  if(!form||!window.Stripe)return;
+  form.addEventListener("submit",async function(e){
+    e.preventDefault();btn.disabled=true;btn.textContent="Chargement du paiement…";
+    try{
+      var r=await fetch("/facture/${esc(inv.token)}/session",{method:"POST"});var j=await r.json();
+      if(j.reload){location.reload();return;}
+      if(!r.ok||!j.clientSecret)throw new Error(j.error||"erreur");
+      var stripe=Stripe(j.publishableKey,{locale:"fr"});
+      var co=await stripe.initEmbeddedCheckout({clientSecret:j.clientSecret});
+      form.closest(".paybox").querySelector("form").hidden=true;
+      box.hidden=false;co.mount(box);box.scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(err){form.submit();}
+  });
+})();
+</script>` : ""}
+${flash && flash.warn && /confirmation/.test(flash.text) ? `<script>
+(function(){var n=0;var t=setInterval(async function(){n++;try{var r=await fetch("/facture/${esc(inv.token)}/etat");var j=await r.json();if(j.status==="payee"){clearInterval(t);location.replace(location.pathname+"?paye=1");}}catch(e){}if(n>40)clearInterval(t);},3000);})();
+</script>` : ""}
+</body></html>`;
+}
+
+async function checkoutParams(inv) {
+  const b = await getBilling();
+  return {
+    mode: "payment",
+    locale: "fr",
+    line_items: [{ quantity: 1, price_data: { currency: inv.currency, unit_amount: inv.total_cents,
+      product_data: { name: `Facture ${inv.number}`, description: (inv.title || `${b.company}`).slice(0, 300) } } }],
+    customer_email: inv.client && inv.client.email ? inv.client.email : undefined,
+    client_reference_id: String(inv.id),
+    metadata: { invoice_id: String(inv.id), invoice_number: inv.number },
+    payment_intent_data: { description: `Facture ${inv.number} — ${b.company}`, metadata: { invoice_id: String(inv.id) } },
+  };
 }
 
 function publicRoutes(isOwner) {
@@ -437,11 +486,43 @@ function publicRoutes(isOwner) {
       } catch (e) { console.warn("Vérification Stripe :", e.message); }
     }
     const cur = (await q(`SELECT * FROM invoices WHERE id=$1`, [inv.id])).rows[0];
-    if (sid && cur.status === "payee") flash = { text: "Paiement reçu. Merci !" };
+    if ((sid || req.query.paye) && cur.status === "payee") flash = { text: "Paiement reçu. Merci ! Votre facture est à jour et téléchargeable en PDF." };
     else if (sid) flash = { text: "Paiement en cours de confirmation. Cette page se met à jour dès que Stripe le valide.", warn: true };
-    else if (req.query.annule) flash = { text: "Paiement annulé. Tu peux réessayer quand tu veux.", warn: true };
+    else if (req.query.annule) flash = { text: "Paiement annulé. Vous pouvez réessayer quand vous voulez.", warn: true };
     if (!cur.viewed_at && !isOwner(req)) await q(`UPDATE invoices SET viewed_at=now() WHERE id=$1`, [cur.id]).catch(() => {});
     res.send(page(cur, await getBilling(), flash));
+  });
+
+  // PDF de la facture (client et propriétaire)
+  r.get("/facture/:token/pdf", async (req, res) => {
+    const inv = (await q(`SELECT * FROM invoices WHERE token=$1`, [req.params.token])).rows[0];
+    if (!inv) return res.status(404).send("Facture introuvable");
+    const b = await getBilling();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Robots-Tag", "noindex");
+    res.setHeader("Content-Disposition", `${req.query.voir ? "inline" : "attachment"}; filename="Facture-${inv.number.replace(/[^A-Za-z0-9-]/g, "")}.pdf"`);
+    invoicePdf.render({ ...inv, pay_url: inv.status === "emise" && stripe.enabled() ? invoiceUrl(inv) : null }, b).pipe(res);
+  });
+
+  // Paiement intégré dans la page (Stripe Embedded Checkout)
+  r.post("/facture/:token/session", async (req, res) => {
+    const inv = (await q(`SELECT * FROM invoices WHERE token=$1`, [req.params.token])).rows[0];
+    if (!inv) return res.status(404).json({ error: "Facture introuvable" });
+    if (inv.status !== "emise") return res.status(409).json({ error: "Cette facture n'est plus à payer", reload: true });
+    if (!stripe.publishableKey()) return res.status(409).json({ error: "Paiement intégré indisponible" });
+    try {
+      const url = invoiceUrl(inv) || `${req.protocol}://${req.get("host")}/facture/${inv.token}`;
+      const s = await stripe.call("POST", "/checkout/sessions", { ...(await checkoutParams(inv)), ui_mode: "embedded", return_url: `${url}?session_id={CHECKOUT_SESSION_ID}` });
+      res.json({ clientSecret: s.client_secret, publishableKey: stripe.publishableKey() });
+    } catch (e) { console.warn("Checkout intégré :", e.message); res.status(502).json({ error: "Le paiement en ligne est momentanément indisponible" }); }
+  });
+
+  // État de paiement (la page se met à jour toute seule)
+  r.get("/facture/:token/etat", async (req, res) => {
+    const inv = (await q(`SELECT status FROM invoices WHERE token=$1`, [req.params.token])).rows[0];
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ status: inv ? inv.status : null });
   });
 
   r.post("/facture/:token/payer", async (req, res) => {
@@ -452,14 +533,7 @@ function publicRoutes(isOwner) {
       const b = await getBilling();
       const url = invoiceUrl(inv) || `${req.protocol}://${req.get("host")}/facture/${inv.token}`;
       const s = await stripe.call("POST", "/checkout/sessions", {
-        mode: "payment",
-        locale: "fr",
-        line_items: [{ quantity: 1, price_data: { currency: inv.currency, unit_amount: inv.total_cents,
-          product_data: { name: `Facture ${inv.number}`, description: (inv.title || `${b.company}`).slice(0, 300) } } }],
-        customer_email: inv.client && inv.client.email ? inv.client.email : undefined,
-        client_reference_id: String(inv.id),
-        metadata: { invoice_id: String(inv.id), invoice_number: inv.number },
-        payment_intent_data: { description: `Facture ${inv.number} — ${b.company}`, metadata: { invoice_id: String(inv.id) } },
+        ...(await checkoutParams(inv)),
         success_url: `${url}?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${url}?annule=1`,
       });

@@ -42,6 +42,7 @@ const config = {
 
   // Paiements (Stripe)
   stripeSecretKey: env("STRIPE_SECRET_KEY"),
+  stripePublishableKey: env("STRIPE_PUBLISHABLE_KEY"),
   stripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET"),
 };
 

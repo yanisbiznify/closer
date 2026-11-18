@@ -104,6 +104,7 @@ function openInvoice(id) {
       <div class="bl-url"><input readonly value="${esc(i.url)}" aria-label="Lien de la facture"><button class="btn ghost" id="bi-copy">Copier</button></div>
       <div class="bl-acts">
         <a class="btn primary" href="${esc(i.url)}" target="_blank" rel="noopener">Voir la facture</a>
+        <a class="btn ghost" href="/facture/${esc(i.token)}/pdf">Télécharger le PDF</a>
         ${c.email ? `<button class="btn ghost" id="bi-send">Envoyer par email</button>` : ""}
         ${open ? `<button class="btn ghost" id="bi-stripe">${i.payment_link_url ? "Copier le lien Stripe" : "Créer un lien Stripe direct"}</button>` : ""}
       </div>
@@ -298,28 +299,41 @@ function openStripeConnect(forceNew) {
       <div class="stc-ok"><span class="dot-ok"></span><div><b>${esc((st.account && st.account.name) || "Compte Stripe")} est connecté</b><p class="small muted" style="margin:2px 0 0">Mode ${st.mode === "live" ? "réel (live)" : "test"}${st.account && st.account.id ? ` · ${esc(st.account.id)}` : ""}${fromRailway ? " · clé dans Railway" : ""}</p></div></div>
       ${st.account && st.account.charges === false ? `<div class="callout" style="margin-top:12px"><div class="grow"><b>Ton compte Stripe n'accepte pas encore de paiements.</b><p>Termine l'activation du compte dans Stripe (identité, IBAN).</p></div></div>` : ""}
       <p class="small muted" style="margin:14px 0 0">Les paiements arrivent dans l'app tout seuls : la facture passe en « Payée » et le prospect en « Client signé ».</p>
+      <div class="stc-pk ${st.inPage ? "on" : ""}">
+        <b>${st.inPage ? "Paiement directement sur la facture : activé" : "Faire payer directement sur la page de la facture"}</b>
+        <p class="small muted" style="margin:4px 0 8px">${st.inPage ? "Ton client tape sa carte sans quitter la facture." : `Colle ta <b>clé publiable</b> (pk_${st.mode === "live" ? "live" : "test"}_…), visible sur ta page de clés Stripe. Sans elle, le client passe par la page Stripe puis revient sur la facture.`}</p>
+        ${st.inPage ? "" : `<div style="display:flex;gap:8px"><input id="stc-pk" class="grow" autocomplete="off" spellcheck="false" placeholder="pk_${st.mode === "live" ? "live" : "test"}_…" aria-label="Clé publiable Stripe" style="flex:1"><button class="btn primary" id="stc-pk-save">Activer</button></div><div id="stc-pk-err" class="small c-bad" role="alert" style="min-height:16px;margin-top:6px"></div>`}
+      </div>
       ${fromRailway ? "" : `<div style="display:flex;gap:8px;margin-top:16px"><button class="btn ghost" id="stc-change">Changer de clé</button><button class="btn quiet" id="stc-off">Déconnecter</button></div>`}` });
     const ch = $("#stc-change"); if (ch) ch.onclick = () => openStripeConnect(true);
+    const pkb = $("#stc-pk-save"); if (pkb) pkb.onclick = async () => {
+      pkb.disabled = true;
+      try { const r = await api("/stripe/publishable", { method: "POST", body: JSON.stringify({ publishableKey: $("#stc-pk").value.trim() }) }); window.BL_STRIPE = r.stripe; toast("Paiement sur la facture activé"); openStripeConnect(); loadBilling(); }
+      catch (e) { $("#stc-pk-err").textContent = e.message; pkb.disabled = false; }
+    };
     const off = $("#stc-off"); if (off) off.onclick = async () => {
       if (!(await confirmBox("Déconnecter Stripe ? Le bouton « Payer » de tes factures ne marchera plus."))) return;
       try { await api("/stripe/disconnect", { method: "POST", body: "{}" }); toast("Stripe déconnecté"); $("#bm").classList.remove("on"); loadBilling(); } catch (e) { toast(e.message); }
     };
     return;
   }
-  bModal({ title: "Connecter Stripe", sub: "2 étapes, une seule fois.", go: "Connecter Stripe", width: 560, body: `
+  bModal({ title: "Connecter Stripe", sub: "Une seule fois.", go: "Connecter Stripe", width: 560, body: `
     <ol class="stc-steps">
       <li><b>Crée une clé pour Biznify dans Stripe</b><br><a class="btn primary" style="margin-top:8px" href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Ouvrir mes clés Stripe</a>
         <p class="small muted" style="margin:8px 0 0">Clique sur « Créer une clé restreinte », choisis « Fournir cette clé à un autre site web », nom : <b>Biznify</b>, site : <b>admin.biznify.pro</b>, puis crée la clé avec toutes les autorisations. Ta clé secrète (sk_live_…) marche aussi.</p></li>
       <li><b>Colle la clé ici</b>
         <div class="field" style="margin:8px 0 0"><input id="stc-key" type="password" autocomplete="off" spellcheck="false" placeholder="rk_live_… ou sk_live_…" aria-label="Clé Stripe"></div>
         <p class="small muted" style="margin:6px 0 0">Elle est vérifiée, puis enregistrée chiffrée. Biznify crée tout seul la connexion qui marque tes factures comme payées.</p></li>
+      <li><b>Colle ta clé publiable</b> <span class="small muted">(pk_live_…, sur la même page Stripe)</span>
+        <div class="field" style="margin:8px 0 0"><input id="stc-pk0" autocomplete="off" spellcheck="false" placeholder="pk_live_…" aria-label="Clé publiable Stripe"></div>
+        <p class="small muted" style="margin:6px 0 0">Elle permet à ton client de payer directement sur la page de la facture.</p></li>
     </ol>
     <div id="stc-err" class="small c-bad" role="alert" style="min-height:18px;margin-top:6px"></div>`,
     onGo: async () => {
       const key = $("#stc-key").value.trim();
       if (!key) { $("#stc-err").textContent = "Colle ta clé Stripe"; return false; }
       try {
-        const r = await api("/stripe/connect", { method: "POST", body: JSON.stringify({ key }) });
+        const r = await api("/stripe/connect", { method: "POST", body: JSON.stringify({ key, publishableKey: $("#stc-pk0").value.trim() || undefined }) });
         window.BL_STRIPE = r.stripe; toast(`Stripe connecté${r.stripe.account ? " : " + r.stripe.account.name : ""}`); loadBilling();
       } catch (e) { $("#stc-err").textContent = e.message; return false; }
     } });

@@ -8,6 +8,7 @@ const API = "https://api.stripe.com/v1";
 // Clé : variable Railway STRIPE_SECRET_KEY, sinon celle connectée depuis l'app (chiffrée en base)
 let dbKey = null;
 let account = null;
+let publishable = null;
 const secretKey = () => config.stripeSecretKey || dbKey;
 const enabled = () => !!secretKey();
 const mode = () => (/^(sk|rk)_live_/.test(String(secretKey() || "")) ? "live" : "test");
@@ -108,12 +109,12 @@ async function verify(raw, header) {
 // Charge la clé connectée depuis l'app au démarrage
 async function load() {
   const st = await getState();
-  dbKey = null; account = st.account || null;
+  dbKey = null; account = st.account || null; publishable = config.stripePublishableKey || st.publishableKey || null;
   if (st.sealedKey) { try { dbKey = unseal(st.sealedKey); } catch { console.warn("Stripe : clé enregistrée illisible (SESSION_SECRET changé ?)"); } }
 }
 
 // Connexion depuis l'app : vérifie la clé, l'enregistre chiffrée, crée le webhook
-async function connect(rawKey) {
+async function connect(rawKey, rawPk) {
   const key = String(rawKey || "").trim();
   if (!/^(sk|rk)_(live|test)_[A-Za-z0-9]{10,}$/.test(key)) throw new Error("Colle une clé Stripe qui commence par sk_live_ ou rk_live_ (ou _test_ pour essayer)");
   let acct = null;
@@ -133,16 +134,28 @@ async function connect(rawKey) {
   await setState({ ...st, sealedKey: seal(key), account: acct, connectedAt: new Date().toISOString(), webhookId: null, webhookSecret: null });
   await load();
   await ensureWebhook();
+  if (rawPk) await setPublishable(rawPk);
   return status();
 }
+// Clé publiable (pk_…) : permet le paiement directement dans la page de la facture
+async function setPublishable(raw) {
+  const pk = String(raw || "").trim();
+  if (pk && !/^pk_(live|test)_[A-Za-z0-9]{10,}$/.test(pk)) throw new Error("La clé publiable commence par pk_live_ (ou pk_test_)");
+  if (pk && enabled() && !pk.startsWith(mode() === "live" ? "pk_live_" : "pk_test_")) throw new Error(`Ta clé secrète est en mode ${mode() === "live" ? "live" : "test"} : colle la clé publiable du même mode`);
+  const st = await getState();
+  await setState({ ...st, publishableKey: pk || null });
+  publishable = config.stripePublishableKey || pk || null;
+  return status();
+}
+const publishableKey = () => publishable;
 async function disconnect() {
   const st = await getState();
   if (st.webhookId && dbKey) await call("DELETE", `/webhook_endpoints/${st.webhookId}`).catch(() => {});
   await setState({});
-  dbKey = null; account = null;
+  dbKey = null; account = null; publishable = config.stripePublishableKey || null;
 }
 function status() {
-  return { enabled: enabled(), mode: enabled() ? mode() : null, source: source(), account };
+  return { enabled: enabled(), mode: enabled() ? mode() : null, source: source(), account, inPage: !!(enabled() && publishable) };
 }
 
-module.exports = { enabled, mode, call, ensureWebhook, verify, getState, load, connect, disconnect, status };
+module.exports = { enabled, mode, call, ensureWebhook, verify, getState, load, connect, disconnect, status, setPublishable, publishableKey };
