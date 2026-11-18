@@ -937,3 +937,19 @@ input,select,textarea{color-scheme:light}
 .ldm-act{margin-top:10px}.ldm-act summary{cursor:pointer;font-size:13px;color:var(--mut);padding:6px 0}.ldm-act .act li{padding:10px 4px}
 @media (max-width:1100px){.biz-grid{grid-template-columns:1fr 1fr}}
 @media (max-width:620px){.biz-grid{grid-template-columns:1fr}.act li{padding:12px 14px}}
+
+/* ---------- Prospection Google Maps ---------- */
+.pr-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:start}
+.pr-f{display:flex;flex-direction:column;gap:4px}
+.pr-f .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pr-filt{border:1px solid var(--line);border-radius:12px;padding:12px 14px 4px;margin:6px 0 10px}
+.pr-filt legend{font-size:12.5px;font-weight:600;color:var(--mut);padding:0 6px}
+.pr-filt .st-check{display:flex;gap:8px;align-items:center;font-size:13.5px;margin:6px 0}
+#pr-go{align-self:flex-start;margin-top:4px}
+.pr-jobs{list-style:none;margin:0;padding:0}
+.pr-jobs li{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:14px 20px;border-top:1px solid var(--line-soft)}
+.pr-jobs li:first-child{border-top:0}
+.pr-j-t b{display:block}.pr-j-d,.pr-j-a{grid-column:1/-1}
+.pr-j-a{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pr-jobs .badge .spin{width:11px;height:11px}
+@media (max-width:1000px){.pr-grid{grid-template-columns:1fr}}

@@ -23,6 +23,7 @@ function onView(v) {
   if (v === "leads") loadLeadsView();
   if (v === "objections") loadObjections();
   if (v === "pipeline") loadPipeline();
+  if (v === "prospect" && typeof loadProspect === "function") loadProspect();
   if (v === "calendar") loadCalendar();
   if (v === "billing") loadBilling();
   if (v === "revenue") loadRevenue();
