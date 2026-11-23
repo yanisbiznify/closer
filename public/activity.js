@@ -3,6 +3,9 @@ const ACT = { last: null, timer: null };
 const eur0 = (c) => ((c || 0) / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const eur2 = (c) => ((c || 0) / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const ACT_ICON = {
+  call_in: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M16 2v6h6M22 2l-6 6"/>',
+  call_missed: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/><path d="m16 2 6 6M22 2l-6 6"/>',
+  voicemail: '<circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><path d="M6 16h12"/>',
   payment: '<path d="M4 10h12M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/>',
   invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   booking: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
@@ -47,15 +50,15 @@ async function loadBusiness() {
 }
 function actList(items) {
   if (!items || !items.length) return `<div class="panel-b muted small">Rien pour l'instant : les paiements, factures, réservations et demandes de tes sites apparaîtront ici.</div>`;
-  return `<ul class="act">${items.map((x) => `<li class="act-${esc(x.type)}" ${x.lead_id ? `data-lead="${x.lead_id}" tabindex="0" role="button"` : ""}>
+  return `<ul class="act">${items.map((x) => `<li class="act-${esc(x.type)}${x.type === "voicemail" ? " act-vm" : ""}" ${x.lead_id ? `data-lead="${x.lead_id}" tabindex="0" role="button"` : ""}>
     <span class="act-i">${actIcon(x.type)}</span>
-    <div class="act-t"><b>${esc(x.title)}</b>${x.detail ? `<span>${esc(x.detail)}</span>` : ""}</div>
+    <div class="act-t"><b>${esc(x.title)}</b>${x.detail ? `<span>${esc(x.detail)}</span>` : ""}${x.type === "voicemail" && /^vm:/.test(x.ref || "") ? `<audio controls preload="none" src="/api/incoming/voicemail/${encodeURIComponent(x.ref.slice(3))}/audio" aria-label="Écouter le message"></audio>` : ""}</div>
     <div class="act-r">${x.amount_cents ? `<b class="${x.type === "payment" ? "c-good" : ""}">${x.type === "payment" ? "+" : ""}${eur2(x.amount_cents)}</b>` : ""}<span>${esc(ago(x.created_at))}</span></div></li>`).join("")}</ul>`;
 }
 function bindActList() {
   $$("#act-list [data-lead]").forEach((li) => {
     const go = () => openLead(Number(li.dataset.lead));
-    li.onclick = go; li.onkeydown = (e) => { if (e.key === "Enter") go(); };
+    li.onclick = (e) => { if (!e.target.closest("audio")) go(); }; li.onkeydown = (e) => { if (e.key === "Enter") go(); };
   });
 }
 

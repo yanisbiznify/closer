@@ -76,7 +76,7 @@ async function token() {
   const s = await ensureSetup();
   const { AccessToken } = twilio.jwt;
   const t = new AccessToken(config.twilioSid, s.keySid, s.keySecret, { identity: "closer", ttl: 3600 });
-  t.addGrant(new AccessToken.VoiceGrant({ outgoingApplicationSid: s.appSid, incomingAllow: false }));
+  t.addGrant(new AccessToken.VoiceGrant({ outgoingApplicationSid: s.appSid, incomingAllow: true }));
   return t.toJwt();
 }
 

@@ -1179,3 +1179,19 @@ input,select,textarea{color-scheme:light}
   .tm-feats{grid-template-columns:1fr}
 }
 .no-coach #v-dashboard #biz ~ *{display:none!important}
+
+/* ================= Appel entrant ================= */
+.ph-ans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+.ph-ans .ph-c{min-height:72px}
+.ph-c.ok{background:var(--good);color:#fff;border-color:var(--good)}
+.ph-c.ok svg{width:26px;height:26px}
+.ph-ring .ph-state{font-size:15px;font-weight:700}
+.phone.on:has(.ph-ring){box-shadow:0 0 0 4px rgba(18,161,80,.25),0 24px 60px -20px rgba(11,18,32,.45);animation:phring 1.2s ease-in-out infinite}
+@keyframes phring{50%{box-shadow:0 0 0 10px rgba(18,161,80,.12),0 24px 60px -20px rgba(11,18,32,.45)}}
+@media (prefers-reduced-motion:reduce){.phone.on:has(.ph-ring){animation:none}}
+.inc-opts{display:grid;gap:8px}
+.inc-opts label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line-soft);border-radius:12px;cursor:pointer}
+.inc-opts input{margin-top:3px;accent-color:var(--or);width:16px!important;height:16px;flex:none;padding:0}
+.inc-opts label{justify-content:flex-start;text-align:left;font-weight:400}
+.inc-opts b{display:block;font-size:13.5px}.inc-opts small{display:block;color:var(--mut);font-size:12px}
+.act-vm audio{display:block;margin-top:6px;height:32px;max-width:260px}

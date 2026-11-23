@@ -32,6 +32,9 @@ const ROLES = {
 const RULES = [
   [/^\/(me|badges|today|push\/|tasks\/\d+\/done-quick)/, null],
   [/^\/settings$/, null, "GET"],
+  [/^\/incoming\/(lookup|voicemail)/, ["dialer", "pipeline", "conversations", "dashboard"]],
+  [/^\/incoming\/config/, null, "GET"],
+  [/^\/incoming/, ["settings"]],
   [/^\/(settings|notifications)/, ["settings"]],
   [/^\/users/, ["team"]],
   [/^\/(activity|dashboard\/)/, ["dashboard"]],

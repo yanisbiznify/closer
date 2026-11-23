@@ -20,6 +20,7 @@ const activity = require("./src/activity");
 const prospect = require("./src/prospect");
 const mobile = require("./src/mobile");
 const team = require("./src/team");
+const incoming = require("./src/incoming");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -142,6 +143,7 @@ app.post("/api/webhook/ghl", (req, res) => {
 /* ---------- Webhooks Twilio (signature vérifiée) ---------- */
 app.use("/api/twilio", dialer.hooks);
 app.use("/api/twilio", inbox.hooks);
+app.use("/api/twilio", incoming.hooks);
 
 /* ---------- API ---------- */
 const api = express.Router();
@@ -301,6 +303,7 @@ api.use(activity.api);
 api.use(prospect.api);
 api.use(mobile.api);
 api.use(team.api);
+api.use(incoming.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */

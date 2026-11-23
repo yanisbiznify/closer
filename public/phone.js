@@ -28,7 +28,44 @@ async function phoneDevice() {
   return dev;
 }
 
-const phoneBusy = () => ["connecting", "incall", "wrap"].includes(P.phase);
+const phoneBusy = () => ["ringing", "connecting", "incall", "wrap"].includes(P.phase);
+
+/* ---------- Appels entrants ---------- */
+async function phoneListen() {
+  try {
+    if (window.__views && !window.__views.includes("dialer")) return;
+    const cfg = await phoneConfig(); if (!cfg.enabled) return;
+    const inc = await api("/incoming/config"); if (!inc.enabled) return;
+    const dev = await phoneDevice();
+    if (dev.__listening) return;
+    dev.__listening = true;
+    dev.on("incoming", phoneIncoming);
+    await dev.register();
+  } catch (e) { console.warn("Appels entrants :", e.message); }
+}
+async function phoneIncoming(call) {
+  if (phoneBusy()) return; // laisse sonner : bascule sur le portable ou la messagerie
+  const params = call.customParameters || new Map();
+  const from = params.get("Caller") || (call.parameters && call.parameters.From) || "";
+  const leadId = params.get("LeadId");
+  P.call = call; P.inbound = true; P.phase = "ringing"; P.min = false; P.muted = false; P.pad = false; P.showCb = false; P.t0 = 0; P.onDone = null;
+  P.sid = call.parameters && call.parameters.CallSid;
+  P.lead = { id: leadId ? Number(leadId) : null, phone: from, name: from ? "" : "Numéro masqué" };
+  renderPhone();
+  try { navigator.vibrate && navigator.vibrate([400, 200, 400, 200, 400]); } catch {}
+  const title = document.title; let flip = false;
+  clearInterval(P.blink);
+  P.blink = setInterval(() => { document.title = (flip = !flip) ? "📞 Appel entrant" : title; }, 900);
+  const stop = () => { clearInterval(P.blink); document.title = title; };
+  call.on("accept", () => {
+    stop(); P.phase = "incall"; P.t0 = Date.now(); renderPhone();
+    clearInterval(P.timer); P.timer = setInterval(() => { const t = $("#ph-timer"); if (t) t.textContent = pClock(); }, 500);
+  });
+  call.on("cancel", () => { stop(); if (P.phase === "ringing") { P.phase = "idle"; P.call = null; P.inbound = false; renderPhone(); toast("Appel manqué"); } });
+  call.on("reject", () => { stop(); P.phase = "idle"; P.call = null; P.inbound = false; renderPhone(); });
+  call.on("disconnect", () => { stop(); phoneEnded(); });
+  if (from) { try { const r = await api(`/incoming/lookup?phone=${encodeURIComponent(from)}`); if (r.lead && P.lead && P.phase !== "idle") { P.lead = r.lead; renderPhone(); } } catch {} }
+}
 
 async function phoneCall(lead, { onDone } = {}) {
   if (phoneBusy()) { P.min = false; renderPhone(); toast("Termine d'abord l'appel en cours"); return false; }
@@ -78,6 +115,7 @@ async function phoneOutcome(k, cbLocal) {
   const label = (P_OUT.find((o) => o[0] === k) || [])[1];
   toast(r.ghl && r.ghl.ok === false ? `${label}. La note GHL n'a pas pu être ajoutée.` : `${label}${r.ghl && r.ghl.ok ? ", noté dans GHL" : ""}`);
   const done = P.onDone;
+  P.inbound = false;
   P.phase = "idle"; P.lead = null; P.onDone = null; renderPhone();
   document.dispatchEvent(new CustomEvent("lead-updated", { detail: r.lead }));
   if (typeof refresh === "function") refresh();
@@ -86,7 +124,8 @@ async function phoneOutcome(k, cbLocal) {
 }
 
 function phoneClose() {
-  if (P.phase === "connecting" || P.phase === "incall") return;
+  if (P.phase === "connecting" || P.phase === "incall" || P.phase === "ringing") return;
+  P.inbound = false;
   P.phase = "idle"; P.lead = null; P.onDone = null; renderPhone();
   document.dispatchEvent(new CustomEvent("phone-state"));
 }
@@ -101,10 +140,20 @@ function renderPhone() {
     <div class="ph-t"><b>${esc(pTitle(l))}</b><span>${esc([l.company && l.name ? l.name : "", pFmtPhone(l.phone)].filter(Boolean).join(", "))}</span></div>
     ${P.phase === "incall" ? `<span class="ph-live" id="ph-timer">${pClock()}</span>` : ""}
     <button class="btn quiet ph-ic" id="ph-min" aria-label="${P.min ? "Agrandir" : "Réduire"}">${P.min ? "▴" : "▾"}</button>
-    ${P.phase === "setup" || P.phase === "wrap" ? `<button class="btn quiet ph-ic" id="ph-x" aria-label="Fermer">✕</button>` : ""}
+    ${P.phase === "setup" || (P.phase === "wrap" && !(P.inbound && !l.id)) ? `<button class="btn quiet ph-ic" id="ph-x" aria-label="Fermer">✕</button>` : ""}
   </div>`;
   let body = "";
-  if (P.phase === "setup") {
+  if (P.phase === "ringing") {
+    body = `<div class="ph-b ph-ring">
+      <div class="ph-state"><span class="live"></span>Appel entrant${l.id ? "" : " · numéro inconnu"}</div>
+      <div class="ph-ans"><button class="ph-c end" id="ph-decline">${P_ICON_END}<span>Refuser</span></button><button class="ph-c ok" id="ph-accept">${P_ICON_CALL}<span>Répondre</span></button></div>
+    </div>`;
+  } else if (P.phase === "wrap" && P.inbound && !l.id) {
+    body = `<div class="ph-b"><div class="ph-state">Appel terminé${P.t0 ? `, ${pClock()}` : ""}</div>
+      <p class="small muted" style="margin:0 0 10px">Ce numéro n'est pas dans tes prospects.</p>
+      <div class="field" style="margin:0 0 8px"><input id="ph-newname" placeholder="Nom ou entreprise"></div>
+      <div style="display:flex;gap:8px"><button class="btn primary" id="ph-addlead">Ajouter aux prospects</button><button class="btn ghost" id="ph-x2">Fermer</button></div></div>`;
+  } else if (P.phase === "setup") {
     const c = P.cfg || {};
     body = `<div class="ph-b"><p style="margin:0 0 8px"><b>${c.error ? "Twilio ne répond pas" : "Le dialer n'est pas encore connecté"}</b></p>
       <p class="muted small" style="margin:0">${c.error ? esc(c.error) : `Ajoute dans Railway : ${(c.missing || []).map(esc).join(", ")}. Biznify configure le reste tout seul.`}</p>
@@ -136,6 +185,17 @@ function renderPhone() {
   const on = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
   on("#ph-min", () => { P.min = !P.min; renderPhone(); });
   on("#ph-x", phoneClose);
+  on("#ph-x2", phoneClose);
+  on("#ph-accept", () => { if (P.call) { P.call.accept(); } });
+  on("#ph-decline", () => { if (P.call) P.call.reject(); });
+  on("#ph-addlead", async () => {
+    const nm = ($("#ph-newname").value || "").trim();
+    try {
+      const r = await api("/leads", { method: "POST", body: JSON.stringify({ company: nm || null, phone: l.phone }) });
+      const lead = r.lead || r; toast("Prospect ajouté");
+      phoneClose(); if (lead && lead.id && typeof openLead === "function") openLead(lead.id);
+    } catch (e) { toast(e.message); }
+  });
   on("#ph-end", () => P.call ? P.call.disconnect() : phoneEnded());
   on("#ph-mute", () => { if (!P.call) return; P.muted = !P.muted; P.call.mute(P.muted); renderPhone(); });
   on("#ph-pad", () => { P.pad = !P.pad; P.digits = ""; renderPhone(); });
@@ -157,3 +217,5 @@ document.addEventListener("keydown", (e) => {
   const i = parseInt(e.key);
   if (i >= 1 && i <= P_OUT.length) { e.preventDefault(); phoneOutcome(P_OUT[i - 1][0]); }
 });
+
+window.addEventListener("load", () => setTimeout(phoneListen, 2500));
