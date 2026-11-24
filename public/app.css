@@ -1195,3 +1195,43 @@ input,select,textarea{color-scheme:light}
 .inc-opts label{justify-content:flex-start;text-align:left;font-weight:400}
 .inc-opts b{display:block;font-size:13.5px}.inc-opts small{display:block;color:var(--mut);font-size:12px}
 .act-vm audio{display:block;margin-top:6px;height:32px;max-width:260px}
+
+/* ---------- Vidéos (façon Loom) ---------- */
+.vd-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+.vd-rec .g2,.vd-dev{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.vd-mode{margin-bottom:16px;width:100%;display:flex}.vd-mode button{flex:1}
+.vd-stage{position:relative;aspect-ratio:16/9;background:#0B1220;border-radius:12px;overflow:hidden;margin-bottom:18px}
+.vd-screen-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#8A93A3;font-size:13px;text-align:center;padding:20px}
+.vd-screen{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0B1220}
+.vd-cam{position:absolute;left:16px;bottom:16px;width:26%;aspect-ratio:1;border-radius:50%;object-fit:cover;transform:scaleX(-1);border:3px solid #fff;box-shadow:0 6px 20px rgba(0,0,0,.35);background:#1b2333}
+.vd-stage.cam-only .vd-cam{left:0;top:0;bottom:0;width:100%;height:100%;aspect-ratio:auto;border-radius:0;border:0;box-shadow:none}
+.vd-stage.cam-only .vd-screen-ph,.vd-stage.no-cam .vd-cam{display:none}
+.vd-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(11,18,32,.55);color:#fff;font:700 96px/1 var(--title);z-index:2}
+.vd-meter{height:4px;background:var(--raised);border-radius:4px;margin-top:8px;overflow:hidden}.vd-meter i{display:block;height:100%;width:0;background:var(--good);transition:width .08s}
+.vd-more{border-top:1px solid var(--line-soft);padding:12px 0 4px;margin-bottom:6px}
+.vd-more summary{cursor:pointer;font-weight:500;color:var(--text-2)}
+.vd-check{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-2);margin:2px 0 8px;cursor:pointer}.vd-check input{width:auto;margin-top:3px}
+.vd-go{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
+.vd-red{width:10px;height:10px;border-radius:50%;background:#FF4D4D;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+.vd-sq{width:10px;height:10px;border-radius:2px;background:currentColor}
+.vd-live{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.vd-rec-dot{width:12px;height:12px;border-radius:50%;background:#E5322D;animation:pulse 1.2s infinite}
+.vd-live.paused .vd-rec-dot{animation:none;background:var(--mid)}
+.vd-time{font:600 40px/1 var(--title);letter-spacing:-.03em}
+.vd-up{margin-left:auto}
+.vd-live-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.vd-launch{text-align:center;padding:24px 10px}.vd-launch b{font-size:17px}.vd-launch .vd-live-btns{justify-content:center}
+#vd-done video{width:100%;border-radius:12px;background:#0B1220;display:block;aspect-ratio:16/9}
+.vd-link{display:flex;gap:8px;margin:16px 0 8px}.vd-link input{font-weight:500}
+.vd-prog{height:6px;background:var(--raised);border-radius:6px;overflow:hidden;margin:14px 0 6px}.vd-prog i{display:block;height:100%;background:var(--or);width:0;transition:width .3s}
+.vd-items{list-style:none;margin:0;padding:0}
+.vd-item{display:grid;grid-template-columns:132px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 20px;border-top:1px solid var(--line-soft)}
+.vd-item:first-child{border-top:0}
+.vd-th{position:relative;width:132px;aspect-ratio:16/9;border-radius:8px;background:#0B1220 center/cover no-repeat;overflow:hidden;display:block}
+.vd-th em{position:absolute;right:5px;bottom:5px;font:600 11px/1 var(--body);font-style:normal;color:#fff;background:rgba(0,0,0,.6);padding:3px 5px;border-radius:4px}
+.vd-it b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vd-it .small{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.vd-acts{display:flex;gap:2px}
+.vd-acts .btn{padding:7px 8px}
+@media (max-width:1100px){.vd-grid{grid-template-columns:1fr}}
+@media (max-width:640px){.vd-item{grid-template-columns:96px minmax(0,1fr);padding:12px 14px}.vd-th{width:96px}.vd-acts{grid-column:1/-1;justify-content:flex-end}.vd-rec .g2,.vd-dev{grid-template-columns:1fr}.vd-mode button{padding:5px 6px}}

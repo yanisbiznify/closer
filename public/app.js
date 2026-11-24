@@ -436,7 +436,7 @@ $("#btn-logout").onclick = async () => { await fetch("/api/logout", { method: "P
   if (location.hash === "#calendar-refus") start = "calendar";
   const lm = /^lead-(\d+)$/.exec(start);
   if (lm) window.addEventListener("load", () => setTimeout(() => openLead(Number(lm[1])), 300), { once: true });
-  if (["dashboard", "prospect", "revenue", "goals", "pipeline", "calendar", "billing", "conversations", "automations", "sites", "dialer", "leads", "objections", "calls", "coach", "import", "settings"].includes(start)) { const go = () => show(start); if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true }); }
+  if (["dashboard", "prospect", "revenue", "goals", "pipeline", "calendar", "billing", "conversations", "videos", "automations", "sites", "dialer", "leads", "objections", "calls", "coach", "import", "settings"].includes(start)) { const go = () => show(start); if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true }); }
   try {
     const me = await api("/me");
     window.__me = me;
