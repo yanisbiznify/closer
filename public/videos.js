@@ -12,6 +12,8 @@ const needsScreen = () => VD.mode !== "cam";
 const vdStore = (k, v) => { try { if (v === undefined) return localStorage.getItem("vd-" + k); localStorage.setItem("vd-" + k, v); } catch {} };
 const fmtClock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const fmtSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(1).replace(".", ",") + " Go" : b >= 1e6 ? Math.round(b / 1e6) + " Mo" : Math.max(1, Math.round(b / 1e3)) + " Ko";
+// Chrome/Edge : on incruste la bulle caméra directement dans la vidéo (dans un worker, qui tourne même onglet caché)
+const canCompose = () => !!(window.MediaStreamTrackProcessor && window.MediaStreamTrackGenerator && window.OffscreenCanvas && window.VideoFrame && window.Worker);
 const elapsed = () => VD.acc + (VD.paused || !VD.t0 ? 0 : Date.now() - VD.t0);
 
 /* ---------- Ouverture de la vue ---------- */
@@ -78,7 +80,7 @@ function setStage() {
   st.classList.toggle("no-cam", !needsCam());
   $("#vd-cam-f").hidden = !needsCam();
   $("#vd-sys-f").hidden = !needsScreen();
-  $("#vd-hint").textContent = VD.mode === "screen-cam" ? "Astuce : partage ton « Écran entier » pour que ta bulle apparaisse dans la vidéo." : "";
+  $("#vd-hint").textContent = VD.mode !== "screen-cam" ? "" : canCompose() ? "Ta bulle caméra est ajoutée dans la vidéo, en bas à gauche, quel que soit l'écran, la fenêtre ou l'onglet partagé." : "Astuce : partage ton « Écran entier » pour que ta bulle apparaisse dans la vidéo.";
 }
 function stopTracks(s) { if (s) s.getTracks().forEach((t) => t.stop()); }
 function stopPreview() {
@@ -217,7 +219,8 @@ async function openBubble() {
   if (!cam) return false;
   if (window.documentPictureInPicture) {
     try {
-      const w = await documentPictureInPicture.requestWindow({ width: 260, height: 330 });
+      const ctrl = canCompose(); // la bulle est déjà dans la vidéo : la fenêtre flottante ne garde que les boutons (sinon double bulle)
+      const w = await documentPictureInPicture.requestWindow(ctrl ? { width: 330, height: 64 } : { width: 260, height: 330 });
       w.document.head.innerHTML = `<meta charset="utf-8"><title>Biznify</title><style>
         html,body{margin:0;height:100%;background:#0B1220;color:#fff;font:600 13px Inter,system-ui,sans-serif;overflow:hidden}
         .w{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px}
@@ -227,11 +230,13 @@ async function openBubble() {
         .bar{display:flex;align-items:center;gap:8px}
         .dot{width:9px;height:9px;border-radius:50%;background:#E5322D}.p .dot{background:#C77700}
         button{border:0;border-radius:8px;padding:7px 11px;font:600 12.5px Inter,system-ui,sans-serif;cursor:pointer;background:#1F2A3D;color:#fff}
+        .cdt{font-size:20px;color:#fff}
         button.s{background:#E5322D}.m{width:60px;height:3px;background:#1F2A3D;border-radius:3px;overflow:hidden}.m i{display:block;height:100%;width:0;background:#12A150}
       </style>`;
-      w.document.body.innerHTML = `<div class="w"><div class="b"><video id="v" muted playsinline autoplay></video><div id="cd" hidden></div></div>
+      w.document.body.innerHTML = ctrl ? `<div class="w"><div class="bar" id="bar"><span class="dot"></span><span id="t">0:00</span><b id="cd" class="cdt" hidden></b><div class="m"><i id="m"></i></div><button id="p" type="button">Pause</button><button id="s" class="s" type="button">Terminer</button></div></div>`
+        : `<div class="w"><div class="b"><video id="v" muted playsinline autoplay></video><div id="cd" hidden></div></div>
         <div class="bar" id="bar"><span class="dot"></span><span id="t">0:00</span><div class="m"><i id="m"></i></div><button id="p" type="button">Pause</button><button id="s" class="s" type="button">Terminer</button></div></div>`;
-      const v = w.document.getElementById("v"); v.srcObject = cam; v.play().catch(() => {});
+      const v = w.document.getElementById("v"); if (v) { v.srcObject = cam; v.play().catch(() => {}); }
       w.document.getElementById("p").onclick = togglePause;
       w.document.getElementById("s").onclick = stopRecording;
       // la bulle est toujours visible : c'est elle qui fait avancer le chrono quand l'onglet est en arrière-plan
@@ -272,9 +277,60 @@ function pickMime() {
     "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"];
   return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
 }
+const COMPOSE_WORKER = `
+let screen = null, canvas = null, ctx = null, writer = null;
+const even = (n) => Math.max(2, Math.round(n / 2) * 2);
+onmessage = ({ data }) => {
+  writer = data.out.getWriter();
+  (async () => { const r = data.screen.getReader(); for (;;) { const { value, done } = await r.read(); if (done) break; if (screen) screen.close(); screen = value; } })().catch(() => {});
+  (async () => {
+    const r = data.cam.getReader();
+    for (;;) {
+      const { value: cam, done } = await r.read(); if (done) break;
+      try { if (screen) await draw(cam); } catch (e) {}
+      cam.close();
+    }
+    try { writer.close(); } catch (e) {}
+  })().catch(() => {});
+};
+async function draw(cam) {
+  const sw = screen.displayWidth, sh = screen.displayHeight;
+  const W = even(Math.min(sw, 1920)), H = even(sh * W / sw);
+  if (!canvas || canvas.width !== W || canvas.height !== H) { canvas = new OffscreenCanvas(W, H); ctx = canvas.getContext("2d"); }
+  ctx.drawImage(screen, 0, 0, W, H);
+  const d = Math.round(Math.min(W, H) * 0.24), m = Math.round(Math.min(W, H) * 0.035), x = m, y = H - d - m;
+  const cw = cam.displayWidth, ch = cam.displayHeight, s = Math.min(cw, ch);
+  ctx.save(); ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = d * 0.08;
+  ctx.beginPath(); ctx.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.arc(x + d / 2, y + d / 2, d / 2 - Math.max(2, d * 0.02), 0, Math.PI * 2); ctx.clip();
+  ctx.drawImage(cam, (cw - s) / 2, (ch - s) / 2, s, s, x, y, d, d); ctx.restore();
+  const f = new VideoFrame(canvas, { timestamp: cam.timestamp });
+  try { await writer.write(f); } finally { try { f.close(); } catch (e) {} }
+}`;
+// Fusionne l'écran et la caméra en une seule piste vidéo (bulle ronde en bas à gauche)
+function composeTrack(screenTrack, camTrack) {
+  if (!canCompose() || !screenTrack || !camTrack) return null;
+  try {
+    const sc = screenTrack.clone(), cc = camTrack.clone();
+    const sp = new MediaStreamTrackProcessor({ track: sc }), cp = new MediaStreamTrackProcessor({ track: cc });
+    const gen = new MediaStreamTrackGenerator({ kind: "video" });
+    const w = new Worker(URL.createObjectURL(new Blob([COMPOSE_WORKER], { type: "text/javascript" })));
+    w.postMessage({ screen: sp.readable, cam: cp.readable, out: gen.writable }, [sp.readable, cp.readable, gen.writable]);
+    VD.compose = { worker: w, tracks: [sc, cc, gen] };
+    return gen;
+  } catch (e) { console.warn("Incrustation de la caméra impossible :", e); return null; }
+}
+function stopCompose() {
+  if (!VD.compose) return;
+  VD.compose.tracks.forEach((t) => { try { t.stop(); } catch {} });
+  setTimeout(((w) => () => w.terminate())(VD.compose.worker), 1500);
+  VD.compose = null;
+}
 function buildStream() {
   const tracks = [];
-  const vtrack = needsScreen() ? VD.screen.getVideoTracks()[0] : VD.prev.getVideoTracks()[0];
+  const camTrack = VD.prev && VD.prev.getVideoTracks()[0];
+  let vtrack = needsScreen() ? VD.screen.getVideoTracks()[0] : camTrack;
+  if (VD.mode === "screen-cam" && camTrack) vtrack = composeTrack(vtrack, camTrack) || vtrack;
   if (vtrack) tracks.push(vtrack);
   const mic = VD.prev && VD.prev.getAudioTracks()[0];
   const sys = VD.screen && VD.screen.getAudioTracks()[0];
@@ -309,7 +365,7 @@ function beginRecording() {
   VD.rec.start(2000);
   VD.phase = "rec";
   showPane("live");
-  $("#vd-live-tip").textContent = VD.mode === "cam" ? "Regarde la caméra et parle naturellement." : VD.pip || document.pictureInPictureElement ? "Ta bulle caméra flotte au-dessus de tes fenêtres. Va sur ce que tu veux montrer : tout est enregistré." : "Va sur ce que tu veux montrer : tout est enregistré. Reviens ici pour terminer.";
+  $("#vd-live-tip").textContent = VD.mode === "cam" ? "Regarde la caméra et parle naturellement." : VD.compose ? "Ta bulle caméra est incrustée dans la vidéo. Va sur ce que tu veux montrer : tout est enregistré." : VD.pip || document.pictureInPictureElement ? "Ta bulle caméra flotte au-dessus de tes fenêtres. Va sur ce que tu veux montrer : tout est enregistré." : "Va sur ce que tu veux montrer : tout est enregistré. Reviens ici pour terminer.";
   $(".vd-live").classList.remove("paused");
   $("#vd-pause").textContent = "Pause";
   clearInterval(VD.timer);
@@ -404,6 +460,7 @@ async function stopRecording() {
 }
 function releaseCapture() {
   closeBubble();
+  stopCompose();
   stopTracks(VD.screen); VD.screen = null;
   if (VD.mixCtx) { VD.mixCtx.close().catch(() => {}); VD.mixCtx = null; }
   $("#vd-screen").srcObject = null; $("#vd-screen").hidden = true; $("#vd-screen-ph").hidden = false;
