@@ -31,6 +31,8 @@ function onView(v) {
   if (typeof cvOnView === "function") cvOnView(v);
   if (v === "automations") loadAutomations();
   if (v === "sites" && typeof loadSites === "function") loadSites();
+  if (v === "videos" && typeof loadVideos === "function") loadVideos();
+  else if (typeof vdLeave === "function") vdLeave();
   if (v === "settings" && typeof loadNotifications === "function") loadNotifications();
 }
 

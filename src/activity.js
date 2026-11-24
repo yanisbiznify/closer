@@ -32,9 +32,9 @@ async function log(type, { leadId = null, title, detail = null, amountCents = nu
       [type, leadId || null, String(title).slice(0, 300), detail ? String(detail).slice(0, 1000) : null, amountCents, ref ? String(ref).slice(0, 200) : null]);
     const id = r.rows[0] ? r.rows[0].id : null;
     // notification push sur le téléphone pour ce qui compte
-    const PUSH = { voicemail: "/#dashboard", call_missed: "/#dashboard", payment: "/#revenue", booking: "/#calendar", site_lead: "/#sites", reply: "/#conversations", prospect: "/#pipeline" };
+    const PUSH = { voicemail: "/#dashboard", call_missed: "/#dashboard", payment: "/#revenue", booking: "/#calendar", site_lead: "/#sites", video_view: "/#videos", reply: "/#conversations", prospect: "/#pipeline" };
     if (id && PUSH[type]) {
-      const head = type === "payment" ? `💰 ${euro(amountCents)} encaissés` : type === "booking" ? "📅 Nouveau rendez-vous" : type === "reply" ? "💬 Nouveau message" : type === "voicemail" ? "🎙️ Nouveau message vocal" : type === "call_missed" ? "📵 Appel manqué" : type === "site_lead" ? "🌐 Nouvelle demande" : "🎯 Nouveaux prospects";
+      const head = type === "payment" ? `💰 ${euro(amountCents)} encaissés` : type === "booking" ? "📅 Nouveau rendez-vous" : type === "reply" ? "💬 Nouveau message" : type === "voicemail" ? "🎙️ Nouveau message vocal" : type === "call_missed" ? "📵 Appel manqué" : type === "site_lead" ? "🌐 Nouvelle demande" : type === "video_view" ? "🎥 Vidéo regardée" : "🎯 Nouveaux prospects";
       require("./mobile").notify({ title: head, body: [title, detail].filter(Boolean).join(" · ").slice(0, 180), url: leadId ? `/#lead-${leadId}` : PUSH[type], tag: `${type}-${id}` });
     }
     return id;

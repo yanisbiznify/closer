@@ -21,6 +21,7 @@ const prospect = require("./src/prospect");
 const mobile = require("./src/mobile");
 const team = require("./src/team");
 const incoming = require("./src/incoming");
+const videos = require("./src/videos");
 const stripe = require("./src/stripe");
 const tw = require("./src/twilio");
 const ghlApi = require("./src/ghl");
@@ -304,6 +305,7 @@ api.use(prospect.api);
 api.use(mobile.api);
 api.use(team.api);
 api.use(incoming.api);
+api.use(videos.api);
 app.use("/api", api);
 
 /* ---------- Factures publiques (lien envoyé au client) ---------- */
@@ -311,6 +313,7 @@ app.use(billing.publicRoutes(authed));
 app.use(booking.publicRoutes());
 app.use(mailer.publicRoutes);
 app.use(sites.publicRoutes);
+app.use(videos.publicRoutes(authed));
 
 /* ---------- Front ---------- */
 app.use("/vendor/xlsx", express.static(path.join(__dirname, "node_modules/xlsx/dist"), { maxAge: "7d" }));
@@ -348,6 +351,7 @@ process.on("unhandledRejection", (e) => console.error("Erreur non gérée :", e 
   await prospect.migrate();
   await mobile.migrate();
   await team.migrate();
+  await videos.migrate();
   await getSettings();
   app.listen(config.port, () => console.log(`CLOSER PRO en ligne sur le port ${config.port}`));
   worker.start();

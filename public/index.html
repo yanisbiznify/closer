@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=27">
+<link rel="stylesheet" href="/app.css?v=28">
 </head>
 <body>
 <div class="shell">
@@ -31,6 +31,7 @@
       <button data-v="pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>Pipeline</button>
       <button data-v="prospect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>Prospection</button>
       <button data-v="conversations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg>Conversations<span class="count" id="nav-unread"></span></button>
+      <button data-v="videos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2.5"/><path d="m22 8-6 4 6 4z"/></svg>Vidéos<span class="count" id="nav-videos"></span></button>
       <button data-v="automations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Automatisations<span class="count" id="nav-tasks"></span></button>
       <button data-v="sites"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/><path d="m14.5 13.5 1.5 1.5-1.5 1.5M9.5 13.5 8 15l1.5 1.5"/></svg>AI Studio</button>
       <button data-v="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><circle cx="12" cy="15" r="1.4" fill="currentColor"/></svg>Agenda</button>
@@ -199,6 +200,74 @@
             <div class="cv-list" id="cv-list"></div>
           </aside>
           <section class="panel cv-main" id="cv-main"></section>
+        </div>
+      </section>
+
+      <!-- VIDÉOS (façon Loom) -->
+      <section class="view" id="v-videos">
+        <div class="head">
+          <div><h1>Vidéos</h1><p>Enregistre ton écran et ta caméra, envoie le lien à ton prospect et sache dès qu'il regarde.</p></div>
+          <div class="actions"><span class="small muted" id="vd-usage"></span></div>
+        </div>
+        <div class="vd-grid">
+          <div class="panel vd-rec" id="vd-rec">
+            <div class="panel-h"><div><h2 id="vd-rec-title">Nouvel enregistrement</h2><div class="sub" id="vd-rec-sub">Choisis ce que tu veux filmer</div></div></div>
+            <div class="panel-b">
+              <div id="vd-setup">
+                <div class="seg vd-mode" id="vd-mode" role="radiogroup" aria-label="Type d'enregistrement">
+                  <button type="button" data-m="screen-cam" class="on">Écran + caméra</button>
+                  <button type="button" data-m="screen">Écran seul</button>
+                  <button type="button" data-m="cam">Caméra seule</button>
+                </div>
+                <div class="vd-stage" id="vd-stage">
+                  <div class="vd-screen-ph" id="vd-screen-ph"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Ton écran sera choisi au moment de démarrer</span></div>
+                  <video id="vd-cam" class="vd-cam" muted playsinline autoplay></video>
+                  <video id="vd-screen" class="vd-screen" muted playsinline autoplay hidden></video>
+                  <div class="vd-count" id="vd-count" hidden></div>
+                </div>
+                <div class="g2 vd-dev">
+                  <div class="field" id="vd-cam-f"><label for="vd-cam-sel">Caméra</label><select id="vd-cam-sel"></select></div>
+                  <div class="field"><label for="vd-mic-sel">Micro</label><select id="vd-mic-sel"></select><div class="vd-meter"><i id="vd-meter"></i></div></div>
+                </div>
+                <div class="field"><label for="vd-title">Titre de la vidéo</label><input id="vd-title" maxlength="160" placeholder="Ex. Audit rapide de votre site, pour Plomberie Martin"></div>
+                <div class="field"><label for="vd-lead">Prospect (facultatif)</label><input id="vd-lead" list="vd-leads" placeholder="Cherche un prospect pour être prévenu quand il regarde" autocomplete="off"><datalist id="vd-leads"></datalist></div>
+                <details class="vd-more">
+                  <summary>Bouton sous la vidéo</summary>
+                  <div class="g2" style="margin-top:12px">
+                    <div class="field"><label for="vd-cta-l">Texte du bouton</label><input id="vd-cta-l" maxlength="60" placeholder="Réserver un appel"></div>
+                    <div class="field"><label for="vd-cta-u">Lien</label><input id="vd-cta-u" maxlength="500" placeholder="https://booking.biznify.pro/…"></div>
+                  </div>
+                  <label class="vd-check" id="vd-sys-f"><input type="checkbox" id="vd-sys" checked> Enregistrer aussi le son de l'ordinateur (si tu partages un onglet ou l'écran entier)</label>
+                </details>
+                <div class="vd-go"><button class="btn primary lg" id="vd-start" type="button"><span class="vd-red"></span>Démarrer l'enregistrement</button><span class="small muted" id="vd-hint"></span></div>
+                <p class="small" id="vd-err" style="color:var(--bad);margin:10px 0 0"></p>
+              </div>
+              <div id="vd-live" hidden>
+                <div class="vd-live">
+                  <div class="vd-rec-dot"></div><div class="vd-time num" id="vd-time">0:00</div>
+                  <div class="vd-up small muted" id="vd-up"></div>
+                </div>
+                <p class="muted" id="vd-live-tip">Ta bulle caméra flotte au-dessus de tes fenêtres. Va sur ce que tu veux montrer : tout est enregistré.</p>
+                <div class="vd-live-btns">
+                  <button class="btn ghost" id="vd-pause" type="button">Pause</button>
+                  <button class="btn primary" id="vd-stop" type="button"><span class="vd-sq"></span>Terminer</button>
+                  <button class="btn quiet" id="vd-cancel" type="button">Annuler</button>
+                </div>
+              </div>
+              <div id="vd-ready" hidden>
+                <div class="vd-launch">
+                  <b>Tout est prêt</b>
+                  <p class="muted" id="vd-ready-txt">Clique sur Lancer : ta bulle caméra s'affiche, puis le compte à rebours démarre.</p>
+                  <div class="vd-live-btns"><button class="btn primary lg" id="vd-launch" type="button"><span class="vd-red"></span>Lancer</button><button class="btn quiet" id="vd-abort" type="button">Annuler</button></div>
+                </div>
+              </div>
+              <div id="vd-done" hidden></div>
+            </div>
+          </div>
+          <div class="panel vd-lib">
+            <div class="panel-h"><div><h2>Mes vidéos</h2><div class="sub" id="vd-lib-sub">Vues et taux de visionnage de chaque lien</div></div></div>
+            <div id="vd-list"></div>
+          </div>
         </div>
       </section>
 
@@ -487,10 +556,10 @@
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/vendor/twilio/twilio.min.js" defer></script>
-<script src="/app.js?v=15"></script>
+<script src="/app.js?v=16"></script>
 <script src="/vendor/xlsx/xlsx.full.min.js" defer></script>
 <script src="/phone.js?v=8"></script>
-<script src="/dialer.js?v=17"></script>
+<script src="/dialer.js?v=18"></script>
 <script src="/crm.js?v=11"></script>
 <script src="/calendar.js?v=9"></script>
 <script src="/billing.js?v=5"></script>
@@ -503,8 +572,9 @@
 <script src="/booking-admin.js?v=1"></script>
 <script src="/notifications.js?v=1"></script>
 <script src="/sites.js?v=4"></script>
-<script src="/activity.js?v=4"></script>
+<script src="/activity.js?v=5"></script>
 <script src="/prospect.js?v=1"></script>
+<script src="/videos.js?v=1"></script>
 <script src="/mobile.js?v=3"></script>
 <script src="/mobile-app.js?v=1"></script>
 </body>

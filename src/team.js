@@ -14,6 +14,7 @@ const FEATURES = [
   { key: "revenue", label: "Chiffre d'affaires", desc: "Voir le détail des revenus", views: ["revenue"] },
   { key: "goals", label: "Objectifs", desc: "Suivre les objectifs", views: ["goals"] },
   { key: "automations", label: "Automatisations", desc: "Créer et lancer des automatisations", views: ["automations"] },
+  { key: "videos", label: "Vidéos", desc: "Enregistrer l'écran et envoyer des vidéos aux prospects", views: ["videos"] },
   { key: "sites", label: "AI Studio", desc: "Créer et publier des sites web", views: ["sites"] },
   { key: "coach", label: "Appels enregistrés et coach", desc: "Écouter les appels, analyses et bilan", views: ["calls", "objections", "coach", "import"] },
   { key: "settings", label: "Réglages", desc: "Script, objectifs, notifications, connexions", views: ["settings"] },
@@ -22,7 +23,7 @@ const FEATURES = [
 const KEYS = FEATURES.map((f) => f.key);
 const ROLES = {
   admin: { label: "Administrateur", desc: "Accès complet, comme toi", perms: KEYS },
-  commercial: { label: "Commercial", desc: "Prospecter, appeler et prendre des RDV", perms: ["dashboard", "pipeline", "dialer", "prospect", "conversations", "calendar", "goals"] },
+  commercial: { label: "Commercial", desc: "Prospecter, appeler et prendre des RDV", perms: ["dashboard", "pipeline", "dialer", "prospect", "conversations", "calendar", "goals", "videos"] },
   assistant: { label: "Assistant", desc: "Agenda, messages et suivi des prospects", perms: ["dashboard", "pipeline", "conversations", "calendar"] },
   compta: { label: "Comptable", desc: "Factures et chiffre d'affaires", perms: ["dashboard", "billing", "revenue"] },
   custom: { label: "Personnalisé", desc: "Tu choisis chaque fonctionnalité", perms: [] },
@@ -51,6 +52,7 @@ const RULES = [
   [/^\/tasks/, ["dashboard", "pipeline", "automations"]],
   [/^\/automations/, ["automations"]],
   [/^\/(sites|cloudflare)/, ["sites"]],
+  [/^\/videos/, ["videos"]],
   [/^\/(calls|paste|upload|sync|backfill|bilan)/, ["coach"]],
 ];
 function allowed(user, method, path) {
