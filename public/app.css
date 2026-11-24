@@ -1235,3 +1235,6 @@ input,select,textarea{color-scheme:light}
 .vd-acts .btn{padding:7px 8px}
 @media (max-width:1100px){.vd-grid{grid-template-columns:1fr}}
 @media (max-width:640px){.vd-item{grid-template-columns:96px minmax(0,1fr);padding:12px 14px}.vd-th{width:96px}.vd-acts{grid-column:1/-1;justify-content:flex-end}.vd-rec .g2,.vd-dev{grid-template-columns:1fr}.vd-mode button{padding:5px 6px}}
+.vd-stage:not(.cam-only) .vd-cam{cursor:grab;touch-action:none;z-index:1}
+.vd-stage:not(.cam-only) .vd-cam:active{cursor:grabbing}
+.vd-count[hidden],.vd-screen-ph[hidden]{display:none}

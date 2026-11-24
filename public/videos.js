@@ -6,6 +6,27 @@ const VD = {
   t0: 0, acc: 0, paused: false, timer: null, pip: null, thumb: null, leads: [], list: [], defaultCta: null, listTimer: null,
 };
 const VD_MAX_MIN = 60;
+// Position de la bulle dans la vidéo : centre (x, y) et diamètre s, en fraction de l'image ; on = caméra visible
+VD.bub = (() => { try { const b = JSON.parse(localStorage.getItem("vd-bub")); if (b && typeof b.x === "number") return { ...b, on: true }; } catch {} return { x: 0.15, y: 0.78, s: 0.26, on: true }; })();
+const BUB_SIZES = [0.18, 0.26, 0.36, 0.48];
+function setBubble(patch) {
+  const b = Object.assign(VD.bub, patch);
+  b.s = Math.max(0.12, Math.min(0.6, b.s));
+  const rx = (b.s * 9) / 16 / 2, ry = b.s / 2; // rayon en fraction de la largeur (image 16:9) et de la hauteur
+  b.x = Math.max(rx, Math.min(1 - rx, b.x)); b.y = Math.max(ry, Math.min(1 - ry, b.y));
+  try { localStorage.setItem("vd-bub", JSON.stringify({ x: b.x, y: b.y, s: b.s })); } catch {}
+  if (VD.compose) VD.compose.worker.postMessage({ bub: { ...b } });
+  placeStageBubble(); paintToolbar();
+}
+// Aperçu dans la page : la bulle est au même endroit que dans la vidéo
+function placeStageBubble() {
+  const c = $("#vd-cam"); if (!c) return;
+  if (VD.mode !== "screen-cam") { c.style.cssText = ""; return; }
+  const b = VD.bub, wPct = b.s * 56.25;
+  c.style.left = (b.x * 100 - wPct / 2) + "%"; c.style.top = (b.y * 100 - b.s * 50) + "%";
+  c.style.width = wPct + "%"; c.style.bottom = "auto";
+  c.style.visibility = b.on ? "" : "hidden";
+}
 const canScreen = () => !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
 const needsCam = () => VD.mode !== "screen";
 const needsScreen = () => VD.mode !== "cam";
@@ -53,6 +74,17 @@ function vdInit() {
   $("#vd-cta-l").value = vdStore("cta-l") || "";
   $("#vd-cta-u").value = vdStore("cta-u") || "";
   $("#vd-start").onclick = onStart;
+  // glisser la bulle dans l'aperçu (avant ou pendant l'enregistrement), molette pour la taille
+  const cam = $("#vd-cam");
+  cam.addEventListener("pointerdown", (e) => {
+    if (VD.mode !== "screen-cam") return;
+    e.preventDefault(); cam.setPointerCapture(e.pointerId);
+    const r = $("#vd-stage").getBoundingClientRect(), b0 = { ...VD.bub }, x0 = e.clientX, y0 = e.clientY;
+    const move = (ev) => setBubble({ x: b0.x + (ev.clientX - x0) / r.width, y: b0.y + (ev.clientY - y0) / r.height });
+    const up = () => { cam.removeEventListener("pointermove", move); cam.removeEventListener("pointerup", up); };
+    cam.addEventListener("pointermove", move); cam.addEventListener("pointerup", up);
+  });
+  cam.addEventListener("wheel", (e) => { if (VD.mode !== "screen-cam") return; e.preventDefault(); setBubble({ s: VD.bub.s * (e.deltaY < 0 ? 1.08 : 0.92) }); }, { passive: false });
   $("#vd-launch").onclick = () => launch(true);
   $("#vd-abort").onclick = () => resetRecorder();
   $("#vd-pause").onclick = togglePause;
@@ -80,7 +112,8 @@ function setStage() {
   st.classList.toggle("no-cam", !needsCam());
   $("#vd-cam-f").hidden = !needsCam();
   $("#vd-sys-f").hidden = !needsScreen();
-  $("#vd-hint").textContent = VD.mode !== "screen-cam" ? "" : canCompose() ? "Ta bulle caméra est ajoutée dans la vidéo, en bas à gauche, quel que soit l'écran, la fenêtre ou l'onglet partagé." : "Astuce : partage ton « Écran entier » pour que ta bulle apparaisse dans la vidéo.";
+  placeStageBubble();
+  $("#vd-hint").textContent = VD.mode !== "screen-cam" ? "" : canCompose() ? "Glisse ta bulle dans l'aperçu pour la placer (molette pour la taille). Tu pourras aussi la bouger pendant l'enregistrement depuis la barre flottante." : "Astuce : partage ton « Écran entier » pour que ta bulle apparaisse dans la vidéo.";
 }
 function stopTracks(s) { if (s) s.getTracks().forEach((t) => t.stop()); }
 function stopPreview() {
@@ -184,7 +217,7 @@ async function launch(fromClick) {
   countdown();
 }
 function showPane(p) {
-  $("#vd-setup").hidden = p !== "setup" && p !== "countdown";
+  $("#vd-setup").hidden = !(p === "setup" || p === "countdown" || (p === "live" && VD.mode === "screen-cam" && VD.compose));
   $("#vd-ready").hidden = p !== "ready";
   $("#vd-live").hidden = p !== "live";
   $("#vd-done").hidden = p !== "done";
@@ -220,8 +253,9 @@ async function openBubble() {
   if (window.documentPictureInPicture) {
     try {
       const ctrl = canCompose(); // la bulle est déjà dans la vidéo : la fenêtre flottante ne garde que les boutons (sinon double bulle)
-      const w = await documentPictureInPicture.requestWindow(ctrl ? { width: 330, height: 64 } : { width: 260, height: 330 });
+      const w = await documentPictureInPicture.requestWindow(ctrl ? { width: 84, height: 500 } : { width: 260, height: 330 });
       w.document.head.innerHTML = `<meta charset="utf-8"><title>Biznify</title><style>
+        [hidden]{display:none!important}
         html,body{margin:0;height:100%;background:#0B1220;color:#fff;font:600 13px Inter,system-ui,sans-serif;overflow:hidden}
         .w{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:10px}
         .b{position:relative;width:min(220px,calc(100vh - 90px),calc(100vw - 20px));aspect-ratio:1;border-radius:50%;overflow:hidden;border:3px solid #fff;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -233,12 +267,61 @@ async function openBubble() {
         .cdt{font-size:20px;color:#fff}
         button.s{background:#E5322D}.m{width:60px;height:3px;background:#1F2A3D;border-radius:3px;overflow:hidden}.m i{display:block;height:100%;width:0;background:#12A150}
       </style>`;
-      w.document.body.innerHTML = ctrl ? `<div class="w"><div class="bar" id="bar"><span class="dot"></span><span id="t">0:00</span><b id="cd" class="cdt" hidden></b><div class="m"><i id="m"></i></div><button id="p" type="button">Pause</button><button id="s" class="s" type="button">Terminer</button></div></div>`
+      if (ctrl) w.document.head.insertAdjacentHTML("beforeend", `<style>
+        body{display:flex;justify-content:center;background:#111827}
+        .tb{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0 10px;width:100%;max-width:84px}
+        .grip{color:#6B7280;font-size:11px;letter-spacing:2px;line-height:1;user-select:none;text-align:center}
+        .ib{width:44px;height:40px;padding:0;border-radius:10px;display:flex;align-items:center;justify-content:center;background:transparent}
+        .ib:hover{background:#1F2A3D}.ib svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+        .ib.off svg{stroke:#6B7280}
+        .stop{width:48px;height:48px;border-radius:12px;background:#E5322D;display:flex;align-items:center;justify-content:center;padding:0}
+        .stop i{width:16px;height:16px;border-radius:3px;background:#fff}
+        .p .stop{background:#C77700}
+        #t{font-variant-numeric:tabular-nums;font-size:12.5px;margin-top:-2px}
+        .vm{width:30px;height:4px;background:#1F2A3D;border-radius:3px;overflow:hidden}.vm i{display:block;height:100%;width:0;background:#12A150}
+        .sep{width:36px;height:1px;background:#1F2A3D;margin:2px 0}
+        .pad{display:grid;grid-template-columns:repeat(3,14px);gap:5px;padding:4px}
+        .pad button{width:14px;height:14px;padding:0;border-radius:50%;background:#374151}
+        .pad button.on{background:#fff}.pad button:hover{background:#9CA3AF}
+        .lbl{font-size:10px;color:#9CA3AF;font-weight:500}
+        .del.sure{background:#E5322D}
+        #cd{font-size:30px;line-height:48px;height:48px}
+      </style>`);
+      const I = (d) => `<svg viewBox="0 0 24 24">${d}</svg>`;
+      w.document.body.innerHTML = ctrl ? `<div class="tb" id="bar">
+          <div class="grip" title="Déplace la barre en la prenant par le haut de la fenêtre">● ● ●<br>● ● ●</div>
+          <div class="vm"><i id="m"></i></div>
+          <b id="cd" hidden></b>
+          <button class="stop" id="s" type="button" title="Terminer"><i></i></button>
+          <span id="t">0:00</span>
+          <button class="ib" id="p" type="button" title="Pause">${I('<path d="M9 5v14M15 5v14"/>')}</button>
+          <div class="sep"></div>
+          <button class="ib" id="cam" type="button" title="Afficher / masquer ma caméra">${I('<rect x="2" y="6" width="14" height="12" rx="2.5"/><path d="m22 8-6 4 6 4z"/>')}</button>
+          <span class="lbl">Bulle</span>
+          <div class="pad" id="pad">${[0.15, 0.5, 0.85].map((y) => [0.12, 0.5, 0.88].map((x) => `<button type="button" data-x="${x}" data-y="${y}" title="Placer la bulle ici"></button>`).join("")).join("")}</div>
+          <button class="ib" id="big" type="button" title="Agrandir la bulle">${I('<circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M21 21l-4.5-4.5"/>')}</button>
+          <button class="ib" id="small" type="button" title="Réduire la bulle">${I('<circle cx="11" cy="11" r="7"/><path d="M8 11h6M21 21l-4.5-4.5"/>')}</button>
+          <div class="sep"></div>
+          <button class="ib del" id="del" type="button" title="Supprimer et recommencer">${I('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>')}</button>
+        </div>`
         : `<div class="w"><div class="b"><video id="v" muted playsinline autoplay></video><div id="cd" hidden></div></div>
         <div class="bar" id="bar"><span class="dot"></span><span id="t">0:00</span><div class="m"><i id="m"></i></div><button id="p" type="button">Pause</button><button id="s" class="s" type="button">Terminer</button></div></div>`;
       const v = w.document.getElementById("v"); if (v) { v.srcObject = cam; v.play().catch(() => {}); }
       w.document.getElementById("p").onclick = togglePause;
       w.document.getElementById("s").onclick = stopRecording;
+      if (ctrl) {
+        const $w = (id) => w.document.getElementById(id);
+        $w("cam").onclick = () => setBubble({ on: !VD.bub.on });
+        $w("pad").onclick = (e) => { const b = e.target.closest("button"); if (b) setBubble({ x: Number(b.dataset.x), y: Number(b.dataset.y) }); };
+        const step = (dir) => { const i = BUB_SIZES.findIndex((v) => v >= VD.bub.s - 0.01); setBubble({ s: BUB_SIZES[Math.max(0, Math.min(BUB_SIZES.length - 1, (i < 0 ? BUB_SIZES.length - 1 : i) + dir))] }); };
+        $w("big").onclick = () => step(1); $w("small").onclick = () => step(-1);
+        // supprimer : deux clics (pas de fenêtre de confirmation dans la barre)
+        $w("del").onclick = (e) => {
+          const b = e.currentTarget;
+          if (!b.classList.contains("sure")) { b.classList.add("sure"); b.title = "Clique encore pour supprimer"; setTimeout(() => b.classList.remove("sure"), 3000); return; }
+          discardRecording();
+        };
+      }
       // la bulle est toujours visible : c'est elle qui fait avancer le chrono quand l'onglet est en arrière-plan
       let n = 0;
       w.setInterval(() => {
@@ -247,6 +330,7 @@ async function openBubble() {
       }, 150);
       w.addEventListener("pagehide", () => { VD.pip = null; });
       VD.pip = w;
+      paintToolbar(); bubbleTick();
       return true;
     } catch { /* pas de clic récent : on passera par « Lancer » */ }
   }
@@ -266,7 +350,15 @@ function bubbleTick() {
   const d = VD.pip.document;
   d.getElementById("t").textContent = fmtClock(elapsed());
   d.getElementById("bar").classList.toggle("p", VD.paused);
-  d.getElementById("p").textContent = VD.paused ? "Reprendre" : "Pause";
+  const p = d.getElementById("p");
+  if (p.classList.contains("ib")) { p.innerHTML = VD.paused ? '<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg>'; p.title = VD.paused ? "Reprendre" : "Pause"; }
+  else p.textContent = VD.paused ? "Reprendre" : "Pause";
+}
+function paintToolbar() {
+  if (!VD.pip) return;
+  const d = VD.pip.document, b = VD.bub;
+  const cam = d.getElementById("cam"); if (cam) cam.classList.toggle("off", !b.on);
+  d.querySelectorAll("#pad button").forEach((x) => x.classList.toggle("on", Math.abs(Number(x.dataset.x) - b.x) < 0.12 && Math.abs(Number(x.dataset.y) - b.y) < 0.12));
 }
 
 /* ---------- Enregistrement ---------- */
@@ -278,9 +370,10 @@ function pickMime() {
   return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
 }
 const COMPOSE_WORKER = `
-let screen = null, canvas = null, ctx = null, writer = null;
+let screen = null, canvas = null, ctx = null, writer = null, bub = { x: 0.15, y: 0.78, s: 0.26, on: true }, cur = null;
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
 onmessage = ({ data }) => {
+  if (data.bub) { bub = data.bub; return; }
   writer = data.out.getWriter();
   (async () => { const r = data.screen.getReader(); for (;;) { const { value, done } = await r.read(); if (done) break; if (screen) screen.close(); screen = value; } })().catch(() => {});
   (async () => {
@@ -298,12 +391,20 @@ async function draw(cam) {
   const W = even(Math.min(sw, 1920)), H = even(sh * W / sw);
   if (!canvas || canvas.width !== W || canvas.height !== H) { canvas = new OffscreenCanvas(W, H); ctx = canvas.getContext("2d"); }
   ctx.drawImage(screen, 0, 0, W, H);
-  const d = Math.round(Math.min(W, H) * 0.24), m = Math.round(Math.min(W, H) * 0.035), x = m, y = H - d - m;
+  // la bulle glisse en douceur vers sa nouvelle place
+  const t = { x: bub.x, y: bub.y, s: bub.s, a: bub.on ? 1 : 0 };
+  if (!cur) cur = { ...t };
+  for (const k of ["x", "y", "s", "a"]) cur[k] += (t[k] - cur[k]) * 0.3;
+  if (cur.a > 0.02) {
+  const d = Math.round(H * cur.s), x = Math.round(Math.max(0, Math.min(W - d, cur.x * W - d / 2))), y = Math.round(Math.max(0, Math.min(H - d, cur.y * H - d / 2)));
+  ctx.globalAlpha = cur.a;
   const cw = cam.displayWidth, ch = cam.displayHeight, s = Math.min(cw, ch);
   ctx.save(); ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = d * 0.08;
   ctx.beginPath(); ctx.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
   ctx.save(); ctx.beginPath(); ctx.arc(x + d / 2, y + d / 2, d / 2 - Math.max(2, d * 0.02), 0, Math.PI * 2); ctx.clip();
   ctx.drawImage(cam, (cw - s) / 2, (ch - s) / 2, s, s, x, y, d, d); ctx.restore();
+  ctx.globalAlpha = 1;
+  }
   const f = new VideoFrame(canvas, { timestamp: cam.timestamp });
   try { await writer.write(f); } finally { try { f.close(); } catch (e) {} }
 }`;
@@ -317,6 +418,7 @@ function composeTrack(screenTrack, camTrack) {
     const w = new Worker(URL.createObjectURL(new Blob([COMPOSE_WORKER], { type: "text/javascript" })));
     w.postMessage({ screen: sp.readable, cam: cp.readable, out: gen.writable }, [sp.readable, cp.readable, gen.writable]);
     VD.compose = { worker: w, tracks: [sc, cc, gen] };
+    w.postMessage({ bub: { ...VD.bub } });
     return gen;
   } catch (e) { console.warn("Incrustation de la caméra impossible :", e); return null; }
 }
@@ -468,7 +570,11 @@ function releaseCapture() {
 }
 async function cancelRecording() {
   if (!(await confirmBox("Annuler cet enregistrement ? La vidéo sera supprimée.", "Supprimer"))) return;
+  discardRecording();
+}
+async function discardRecording() {
   VD.discard = true;
+  if (VD.phase === "countdown") VD.phase = "idle";
   if (VD.rec && VD.rec.state !== "inactive") { VD.rec.ondataavailable = null; try { VD.rec.stop(); } catch {} }
   clearInterval(VD.timer);
   const v = await VD.created;
