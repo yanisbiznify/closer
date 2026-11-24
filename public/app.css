@@ -1241,3 +1241,4 @@ input,select,textarea{color-scheme:light}
 #vd-repick[hidden]{display:none}
 .vd-check.vd-sys{background:var(--raised);border-radius:10px;padding:10px 12px;margin:0 0 14px;line-height:1.45}
 .vd-check.vd-sys b{color:var(--text)}
+#vd-mute[hidden]{display:none}
