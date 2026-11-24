@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=29">
+<link rel="stylesheet" href="/app.css?v=30">
 </head>
 <body>
 <div class="shell">
@@ -229,6 +229,7 @@
                   <div class="field" id="vd-cam-f"><label for="vd-cam-sel">Caméra</label><select id="vd-cam-sel"></select></div>
                   <div class="field"><label for="vd-mic-sel">Micro</label><select id="vd-mic-sel"></select><div class="vd-meter"><i id="vd-meter"></i></div></div>
                 </div>
+                <label class="vd-check vd-sys" id="vd-sys-f"><input type="checkbox" id="vd-sys" checked><span><b>Enregistrer le son de l'ordinateur</b> (vidéo, musique, notifications…)<br><span class="muted">Dans la fenêtre de partage, choisis « Écran entier » et active « Partager aussi l'audio du système ». Pour un onglet : « Partager aussi l'audio de l'onglet ».</span></span></label>
                 <div class="field"><label for="vd-title">Titre de la vidéo</label><input id="vd-title" maxlength="160" placeholder="Ex. Audit rapide de votre site, pour Plomberie Martin"></div>
                 <div class="field"><label for="vd-lead">Prospect (facultatif)</label><input id="vd-lead" list="vd-leads" placeholder="Cherche un prospect pour être prévenu quand il regarde" autocomplete="off"><datalist id="vd-leads"></datalist></div>
                 <details class="vd-more">
@@ -237,7 +238,6 @@
                     <div class="field"><label for="vd-cta-l">Texte du bouton</label><input id="vd-cta-l" maxlength="60" placeholder="Réserver un appel"></div>
                     <div class="field"><label for="vd-cta-u">Lien</label><input id="vd-cta-u" maxlength="500" placeholder="https://booking.biznify.pro/…"></div>
                   </div>
-                  <label class="vd-check" id="vd-sys-f"><input type="checkbox" id="vd-sys" checked> Enregistrer aussi le son de l'ordinateur (si tu partages un onglet ou l'écran entier)</label>
                 </details>
                 <div class="vd-go"><button class="btn primary lg" id="vd-start" type="button"><span class="vd-red"></span>Démarrer l'enregistrement</button><span class="small muted" id="vd-hint"></span></div>
                 <p class="small" id="vd-err" style="color:var(--bad);margin:10px 0 0"></p>
@@ -258,7 +258,7 @@
                 <div class="vd-launch">
                   <b>Tout est prêt</b>
                   <p class="muted" id="vd-ready-txt">Clique sur Lancer : ta bulle caméra s'affiche, puis le compte à rebours démarre.</p>
-                  <div class="vd-live-btns"><button class="btn primary lg" id="vd-launch" type="button"><span class="vd-red"></span>Lancer</button><button class="btn quiet" id="vd-abort" type="button">Annuler</button></div>
+                  <div class="vd-live-btns"><button class="btn primary lg" id="vd-launch" type="button"><span class="vd-red"></span>Lancer</button><button class="btn ghost" id="vd-repick" type="button" hidden>Rechoisir l'écran</button><button class="btn quiet" id="vd-abort" type="button">Annuler</button></div>
                 </div>
               </div>
               <div id="vd-done" hidden></div>
@@ -574,7 +574,7 @@
 <script src="/sites.js?v=4"></script>
 <script src="/activity.js?v=5"></script>
 <script src="/prospect.js?v=1"></script>
-<script src="/videos.js?v=4"></script>
+<script src="/videos.js?v=5"></script>
 <script src="/mobile.js?v=3"></script>
 <script src="/mobile-app.js?v=1"></script>
 </body>
