@@ -130,7 +130,7 @@ async function startPreview() {
   const camId = vdStore("cam"), micId = vdStore("mic");
   const want = {
     audio: { deviceId: micId ? { ideal: micId } : undefined, echoCancellation: true, noiseSuppression: true },
-    video: needsCam() ? { deviceId: camId ? { ideal: camId } : undefined, width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false,
+    video: needsCam() ? { deviceId: camId ? { ideal: camId } : undefined, width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" } : false,
   };
   try {
     VD.prev = await navigator.mediaDevices.getUserMedia(want);
@@ -187,7 +187,7 @@ async function onStart() {
   if (needsScreen()) {
     try {
       VD.screen = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 } },
+        video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 3840, max: 3840 }, height: { ideal: 2160, max: 2160 } },
         audio: $("#vd-sys").checked ? { echoCancellation: false, noiseSuppression: false } : false,
         selfBrowserSurface: "exclude", surfaceSwitching: "include", systemAudio: "include", monitorTypeSurfaces: "include",
       });
@@ -388,7 +388,7 @@ onmessage = ({ data }) => {
 };
 async function draw(cam) {
   const sw = screen.displayWidth, sh = screen.displayHeight;
-  const W = even(Math.min(sw, 1920)), H = even(sh * W / sw);
+  const W = even(Math.min(sw, 3840)), H = even(sh * W / sw);
   if (!canvas || canvas.width !== W || canvas.height !== H) { canvas = new OffscreenCanvas(W, H); ctx = canvas.getContext("2d"); }
   ctx.drawImage(screen, 0, 0, W, H);
   // la bulle glisse en douceur vers sa nouvelle place
@@ -417,7 +417,7 @@ function composeTrack(screenTrack, camTrack) {
     const gen = new MediaStreamTrackGenerator({ kind: "video" });
     const w = new Worker(URL.createObjectURL(new Blob([COMPOSE_WORKER], { type: "text/javascript" })));
     w.postMessage({ screen: sp.readable, cam: cp.readable, out: gen.writable }, [sp.readable, cp.readable, gen.writable]);
-    VD.compose = { worker: w, tracks: [sc, cc, gen] };
+    VD.compose = { worker: w, tracks: [sc, cc] }; // la piste générée se ferme toute seule quand les sources s'arrêtent
     w.postMessage({ bub: { ...VD.bub } });
     return gen;
   } catch (e) { console.warn("Incrustation de la caméra impossible :", e); return null; }
@@ -452,7 +452,12 @@ function beginRecording() {
   if (!stream.getVideoTracks().length) { $("#vd-err").textContent = "Aucune image à enregistrer."; return resetRecorder(); }
   const mime = pickMime();
   try {
-    VD.rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: needsScreen() ? 2500000 : 1800000, audioBitsPerSecond: 128000 });
+    // débit adapté à la définition : ~3 Mb/s en 1080p, ~12 Mb/s en 4K (le texte de l'écran reste net)
+    const vs = (needsScreen() && VD.screen ? VD.screen.getVideoTracks()[0] : stream.getVideoTracks()[0]).getSettings();
+    const px = (vs.width || 1920) * (vs.height || 1080);
+    const bps = Math.round(Math.min(16e6, Math.max(2.5e6, px * 30 * 0.05)));
+    VD.res = vs.width && vs.height ? `${vs.width}×${vs.height}` : "";
+    VD.rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: needsScreen() ? bps : Math.max(2.5e6, Math.round(bps * 0.8)), audioBitsPerSecond: 160000 });
   } catch (e) { $("#vd-err").textContent = "Ton navigateur ne sait pas enregistrer de vidéo : " + e.message; return resetRecorder(); }
   VD.mime = (VD.rec.mimeType || mime || "video/webm").split(";")[0];
   Object.assign(VD, { blobs: [], sent: 0, part: 0, offset: 0, queue: Promise.resolve(), upErr: null, discard: false, video: null, thumb: null, acc: 0, paused: false, t0: Date.now() });
@@ -479,7 +484,7 @@ function tick() {
   $("#vd-time").textContent = fmtClock(ms);
   bubbleTick();
   const mb = VD.offset / 1e6;
-  $("#vd-up").textContent = VD.upErr ? "Envoi en pause, la vidéo reste sur ton ordinateur" : VD.offset ? `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} Mo envoyés` : "";
+  $("#vd-up").textContent = VD.upErr ? "Envoi en pause, la vidéo reste sur ton ordinateur" : [VD.res, VD.offset ? `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} Mo envoyés` : ""].filter(Boolean).join(" · ");
   if (ms >= VD_MAX_MIN * 60e3 && VD.phase === "rec") { toast(`Limite de ${VD_MAX_MIN} minutes atteinte`); stopRecording(); }
 }
 function togglePause() {

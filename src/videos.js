@@ -9,7 +9,7 @@ const tw = require("./twilio");
 const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const str = (v, n = 200) => String(v ?? "").trim().slice(0, n);
-const MAX_BYTES = 1.5 * 1024 ** 3; // 1,5 Go par vidéo
+const MAX_BYTES = 4 * 1024 ** 3; // 4 Go par vidéo (≈ 45 min en 4K)
 const SLICE = 4 * 1024 * 1024; // taille maximale servie par requête Range
 
 async function migrate() {
@@ -104,7 +104,7 @@ api.post("/videos/:id/chunk", express.raw({ type: () => true, limit: "16mb" }), 
   const id = parseInt(req.params.id), start = Number(req.query.start);
   if (!Number.isSafeInteger(start) || start < 0) return res.status(400).json({ error: "Position invalide" });
   if (!req.body || !req.body.length) return res.status(400).json({ error: "Morceau vide" });
-  if (start + req.body.length > MAX_BYTES) return res.status(413).json({ error: "Vidéo trop lourde (1,5 Go maximum)" });
+  if (start + req.body.length > MAX_BYTES) return res.status(413).json({ error: "Vidéo trop lourde (4 Go maximum)" });
   const v = (await q(`SELECT status FROM videos WHERE id=$1`, [id])).rows[0];
   if (!v) return res.status(404).json({ error: "Vidéo introuvable" });
   if (v.status !== "uploading") return res.status(409).json({ error: "Vidéo déjà terminée" });
