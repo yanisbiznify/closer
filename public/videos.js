@@ -89,6 +89,7 @@ function vdInit() {
   $("#vd-abort").onclick = () => resetRecorder();
   $("#vd-repick").onclick = () => { stopTracks(VD.screen); VD.screen = null; VD.phase = "idle"; showPane("setup"); onStart(); };
   $("#vd-pause").onclick = togglePause;
+  $("#vd-mute").onclick = toggleMute;
   $("#vd-stop").onclick = stopRecording;
   $("#vd-cancel").onclick = cancelRecording;
   $("#vd-list").addEventListener("click", onListClick);
@@ -129,19 +130,22 @@ async function startPreview() {
   $("#vd-err").textContent = "";
   stopPreview();
   const camId = vdStore("cam"), micId = vdStore("mic");
+  const noMic = micId === "none"; // option « Sans micro »
   const want = {
-    audio: { deviceId: micId ? { ideal: micId } : undefined, echoCancellation: true, noiseSuppression: true },
+    audio: noMic ? false : { deviceId: micId ? { ideal: micId } : undefined, echoCancellation: true, noiseSuppression: true },
     video: needsCam() ? { deviceId: camId ? { ideal: camId } : undefined, width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" } : false,
   };
   try {
-    VD.prev = await navigator.mediaDevices.getUserMedia(want);
+    VD.prev = want.audio || want.video ? await navigator.mediaDevices.getUserMedia(want) : new MediaStream();
   } catch (e) {
     // pas de caméra ? on garde au moins le micro
-    try { if (want.video) { VD.prev = await navigator.mediaDevices.getUserMedia({ audio: want.audio }); $("#vd-err").textContent = "Caméra introuvable ou refusée : l'enregistrement se fera sans ta bulle."; } else throw e; }
+    try { if (want.video && noMic) { VD.prev = new MediaStream(); $("#vd-err").textContent = "Caméra introuvable ou refusée : l'enregistrement se fera sans ta bulle."; }
+      else if (want.video) { VD.prev = await navigator.mediaDevices.getUserMedia({ audio: want.audio }); $("#vd-err").textContent = "Caméra introuvable ou refusée : l'enregistrement se fera sans ta bulle."; } else throw e; }
     catch (e2) { $("#vd-err").textContent = permMsg(e2); return; }
   }
   if (!$("#v-videos").classList.contains("on") && VD.phase === "idle") { stopPreview(); return; }
   const v = $("#vd-cam"); v.srcObject = VD.prev.getVideoTracks().length ? VD.prev : null; v.play().catch(() => {});
+  $(".vd-meter").style.visibility = noMic ? "hidden" : "";
   meter();
   fillDevices();
 }
@@ -161,6 +165,9 @@ async function fillDevices() {
     };
     fill("#vd-cam-sel", "videoinput", "Caméra");
     fill("#vd-mic-sel", "audioinput", "Micro");
+    const none = vdStore("mic") === "none";
+    $("#vd-mic-sel").insertAdjacentHTML("afterbegin", `<option value="none" ${none ? "selected" : ""}>🔇 Sans micro (pas de voix)</option>`);
+    if (none) $("#vd-mic-sel").value = "none";
   } catch {}
 }
 function meter() {
@@ -184,7 +191,7 @@ function meter() {
 /* ---------- Démarrage ---------- */
 async function onStart() {
   $("#vd-err").textContent = "";
-  if (!VD.prev || !VD.prev.getAudioTracks().length) { await startPreview(); if (!VD.prev) return; }
+  if (!VD.prev) { await startPreview(); if (!VD.prev) return; }
   if (needsScreen()) {
     try {
       VD.screen = await navigator.mediaDevices.getDisplayMedia({
@@ -306,6 +313,7 @@ async function openBubble() {
           <b id="cd" hidden></b>
           <button class="stop" id="s" type="button" title="Terminer"><i></i></button>
           <span id="t">0:00</span>
+          <button class="ib" id="mic" type="button" title="Couper le micro"></button>
           <button class="ib" id="p" type="button" title="Pause">${I('<path d="M9 5v14M15 5v14"/>')}</button>
           <div class="sep"></div>
           <button class="ib" id="cam" type="button" title="Afficher / masquer ma caméra">${I('<rect x="2" y="6" width="14" height="12" rx="2.5"/><path d="m22 8-6 4 6 4z"/>')}</button>
@@ -324,6 +332,7 @@ async function openBubble() {
       if (ctrl) {
         const $w = (id) => w.document.getElementById(id);
         $w("cam").onclick = () => setBubble({ on: !VD.bub.on });
+        $w("mic").onclick = toggleMute;
         $w("pad").onclick = (e) => { const b = e.target.closest("button"); if (b) setBubble({ x: Number(b.dataset.x), y: Number(b.dataset.y) }); };
         const step = (dir) => { const i = BUB_SIZES.findIndex((v) => v >= VD.bub.s - 0.01); setBubble({ s: BUB_SIZES[Math.max(0, Math.min(BUB_SIZES.length - 1, (i < 0 ? BUB_SIZES.length - 1 : i) + dir))] }); };
         $w("big").onclick = () => step(1); $w("small").onclick = () => step(-1);
@@ -342,7 +351,7 @@ async function openBubble() {
       }, 150);
       w.addEventListener("pagehide", () => { VD.pip = null; });
       VD.pip = w;
-      paintToolbar(); bubbleTick();
+      paintToolbar(); bubbleTick(); paintMute();
       return true;
     } catch { /* pas de clic récent : on passera par « Lancer » */ }
   }
@@ -374,7 +383,11 @@ function paintToolbar() {
 }
 
 /* ---------- Enregistrement ---------- */
-function pickMime() {
+function pickMime(audio = true) {
+  if (!audio) { // vidéo sans aucun son : pas de codec audio dans le format
+    const t = ["video/mp4;codecs=avc1.42E01F", "video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+    return t.find((x) => window.MediaRecorder && MediaRecorder.isTypeSupported(x)) || "";
+  }
   // MP4 H.264 + AAC d'abord : lisible partout, y compris sur iPhone. Sinon WebM. « video/mp4 » seul en dernier :
   // certains navigateurs y mettent du VP9, moins bien lu sur téléphone.
   const types = ["video/mp4;codecs=avc1.42E01F,mp4a.40.2", "video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1.4D401F,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2",
@@ -464,7 +477,7 @@ function buildStream() {
 function beginRecording() {
   const stream = buildStream();
   if (!stream.getVideoTracks().length) { $("#vd-err").textContent = "Aucune image à enregistrer."; return resetRecorder(); }
-  const mime = pickMime();
+  const mime = pickMime(stream.getAudioTracks().length > 0);
   try {
     // débit adapté à la définition : ~3 Mb/s en 1080p, ~12 Mb/s en 4K (le texte de l'écran reste net)
     const vs = (needsScreen() && VD.screen ? VD.screen.getVideoTracks()[0] : stream.getVideoTracks()[0]).getSettings();
@@ -478,6 +491,7 @@ function beginRecording() {
   const lead = pickedLead();
   const ctaL = $("#vd-cta-l").value.trim(), ctaU = $("#vd-cta-u").value.trim();
   vdStore("cta-l", ctaL); vdStore("cta-u", ctaU);
+  VD.muted = false; paintMute();
   VD.created = api("/videos", { method: "POST", body: JSON.stringify({
     title: $("#vd-title").value.trim() || (lead ? `Vidéo pour ${lead.name}` : ""), lead_id: lead ? lead.id : null,
     mode: VD.mode, mime: VD.mime, cta_label: ctaU ? (ctaL || "En savoir plus") : "", cta_url: ctaU,
@@ -500,6 +514,21 @@ function tick() {
   const mb = VD.offset / 1e6;
   $("#vd-up").textContent = VD.upErr ? "Envoi en pause, la vidéo reste sur ton ordinateur" : [VD.res, VD.sysOn ? "🔊 son du PC" : "", VD.offset ? `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} Mo envoyés` : ""].filter(Boolean).join(" · ");
   if (ms >= VD_MAX_MIN * 60e3 && VD.phase === "rec") { toast(`Limite de ${VD_MAX_MIN} minutes atteinte`); stopRecording(); }
+}
+// couper / remettre le micro pendant l'enregistrement (la vidéo continue, sans ta voix)
+function toggleMute() {
+  const t = VD.prev && VD.prev.getAudioTracks()[0]; if (!t) return;
+  t.enabled = !t.enabled; VD.muted = !t.enabled;
+  paintMute();
+}
+function paintMute() {
+  const has = !!(VD.prev && VD.prev.getAudioTracks()[0]);
+  const b = $("#vd-mute"); if (b) { b.hidden = !has; b.textContent = VD.muted ? "Remettre le micro" : "Couper le micro"; }
+  const m = VD.pip && VD.pip.document.getElementById("mic");
+  if (m) {
+    m.hidden = !has; m.classList.toggle("off", !!VD.muted); m.title = VD.muted ? "Remettre le micro" : "Couper le micro";
+    m.innerHTML = '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>' + (VD.muted ? '<path d="M3 3l18 18"/>' : "") + "</svg>";
+  }
 }
 function togglePause() {
   if (VD.phase !== "rec" || !VD.rec) return;
