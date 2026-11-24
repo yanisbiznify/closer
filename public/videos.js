@@ -87,6 +87,7 @@ function vdInit() {
   cam.addEventListener("wheel", (e) => { if (VD.mode !== "screen-cam") return; e.preventDefault(); setBubble({ s: VD.bub.s * (e.deltaY < 0 ? 1.08 : 0.92) }); }, { passive: false });
   $("#vd-launch").onclick = () => launch(true);
   $("#vd-abort").onclick = () => resetRecorder();
+  $("#vd-repick").onclick = () => { stopTracks(VD.screen); VD.screen = null; VD.phase = "idle"; showPane("setup"); onStart(); };
   $("#vd-pause").onclick = togglePause;
   $("#vd-stop").onclick = stopRecording;
   $("#vd-cancel").onclick = cancelRecording;
@@ -188,8 +189,8 @@ async function onStart() {
     try {
       VD.screen = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: { ideal: 30, max: 30 }, width: { ideal: 3840, max: 3840 }, height: { ideal: 2160, max: 2160 } },
-        audio: $("#vd-sys").checked ? { echoCancellation: false, noiseSuppression: false } : false,
-        selfBrowserSurface: "exclude", surfaceSwitching: "include", systemAudio: "include", monitorTypeSurfaces: "include",
+        audio: $("#vd-sys").checked ? { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false } : false,
+        selfBrowserSurface: "exclude", surfaceSwitching: "include", systemAudio: "include", windowAudio: "system", monitorTypeSurfaces: "include",
       });
     } catch (e) {
       if (e && e.name !== "NotAllowedError") $("#vd-err").textContent = "Partage d'écran impossible : " + e.message;
@@ -203,10 +204,21 @@ async function onStart() {
       else if (VD.phase === "ready" || VD.phase === "countdown") resetRecorder();
     });
   }
+  // son de l'ordinateur demandé mais pas partagé (case « Partager l'audio » non cochée, ou fenêtre partagée)
+  if (needsScreen() && $("#vd-sys").checked && !VD.screen.getAudioTracks().length) {
+    VD.phase = "ready"; showPane("ready");
+    $("#vd-ready").querySelector("b").textContent = "Le son de l'ordinateur n'est pas partagé";
+    $("#vd-ready-txt").innerHTML = "Clique sur <b>Rechoisir l'écran</b>, prends « Écran entier » et active <b>« Partager aussi l'audio du système »</b> en bas de la fenêtre (pour un onglet : « Partager aussi l'audio de l'onglet »). Ou lance sans le son de l'ordinateur : ta voix sera quand même enregistrée.";
+    $("#vd-launch").lastChild.textContent = "Lancer sans le son du PC";
+    $("#vd-repick").hidden = false;
+    return;
+  }
   if (VD.mode === "screen-cam" && VD.prev.getVideoTracks().length) {
     // la bulle a besoin d'un clic : on tente tout de suite, sinon on demande « Lancer »
     if (await openBubble()) return launch(false);
     VD.phase = "ready"; showPane("ready");
+    $("#vd-ready").querySelector("b").textContent = "Tout est prêt";
+    $("#vd-launch").lastChild.textContent = "Lancer"; $("#vd-repick").hidden = true;
     $("#vd-ready-txt").textContent = "Clique sur Lancer : ta bulle caméra s'affiche par-dessus tes fenêtres, puis le compte à rebours démarre.";
     return;
   }
@@ -438,12 +450,14 @@ function buildStream() {
   const sys = VD.screen && VD.screen.getAudioTracks()[0];
   if (mic && sys) {
     VD.mixCtx = new (window.AudioContext || window.webkitAudioContext)();
+    VD.mixCtx.resume().catch(() => {});
     const dest = VD.mixCtx.createMediaStreamDestination();
     VD.mixCtx.createMediaStreamSource(new MediaStream([mic])).connect(dest);
     const g = VD.mixCtx.createGain(); g.gain.value = 0.8;
     VD.mixCtx.createMediaStreamSource(new MediaStream([sys])).connect(g).connect(dest);
     tracks.push(dest.stream.getAudioTracks()[0]);
   } else if (mic || sys) tracks.push(mic || sys);
+  VD.sysOn = !!sys;
   return new MediaStream(tracks);
 }
 
@@ -484,7 +498,7 @@ function tick() {
   $("#vd-time").textContent = fmtClock(ms);
   bubbleTick();
   const mb = VD.offset / 1e6;
-  $("#vd-up").textContent = VD.upErr ? "Envoi en pause, la vidéo reste sur ton ordinateur" : [VD.res, VD.offset ? `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} Mo envoyés` : ""].filter(Boolean).join(" · ");
+  $("#vd-up").textContent = VD.upErr ? "Envoi en pause, la vidéo reste sur ton ordinateur" : [VD.res, VD.sysOn ? "🔊 son du PC" : "", VD.offset ? `${mb < 10 ? mb.toFixed(1).replace(".", ",") : Math.round(mb)} Mo envoyés` : ""].filter(Boolean).join(" · ");
   if (ms >= VD_MAX_MIN * 60e3 && VD.phase === "rec") { toast(`Limite de ${VD_MAX_MIN} minutes atteinte`); stopRecording(); }
 }
 function togglePause() {
